@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Comfort Select Dashboard
+Comment=Synchronize and track Comfort Select scale data
+Exec=comfort_select_dashboard
+Icon=comfort-select-dashboard
+Terminal=false
+Categories=Health;Utility;

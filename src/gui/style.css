@@ -1,0 +1,94 @@
+/* Comfort Select Dashboard Premium Styling */
+
+.main-graph-container {
+    background-color: #1a1a1a;
+    border-radius: 12px;
+    padding: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    border: 1px solid #333;
+}
+
+.metric-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 15px;
+    transition: all 0.2s ease-in-out;
+    min-width: 140px;
+}
+
+.metric-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+    border-color: rgba(0, 170, 255, 0.4);
+}
+
+.metric-card.selected {
+    background: rgba(0, 170, 255, 0.15);
+    border-color: #00aaff;
+    box-shadow: 0 0 10px rgba(0, 170, 255, 0.2);
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: #888;
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.metric-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+/* History List Styling */
+listview {
+    background: transparent;
+}
+
+listitem {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 8px;
+}
+
+listitem:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Range Toolbar */
+.range-toolbar {
+    padding: 6px 10px;
+    margin-top: 4px;
+}
+
+.range-button {
+    min-width: 36px;
+    min-height: 28px;
+    padding: 2px 10px;
+    border-radius: 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #aaa;
+}
+
+.range-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.range-button.selected {
+    background: rgba(0, 170, 255, 0.2);
+    border-color: #00aaff;
+    color: #00aaff;
+}
+
+.range-date-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #888;
+    font-variant-numeric: tabular-nums;
+}
