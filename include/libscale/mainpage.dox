@@ -1,0 +1,78 @@
+/**
+ * @mainpage Comfort Select SDK Backend - High-Level Architecture
+ *
+ * Welcome to the official C++ developer documentation for the **Comfort Select SDK Backend**.
+ * This core static library provides a professional, thread-safe, and dependency-injected framework to communicate
+ * with bio-impedance scales, manage user profiles, compute body composition, and persist records.
+ *
+ * For the frontend user interface component, see the dedicated documentation page:
+ * - @ref gui_doc
+ *
+ * ---
+ *
+ * @section arch_overview 1. Architectural Design & Core Backend Components
+ *
+ * The `libscale` library strictly adheres to **SOLID Principles**, **RAII Memory Management**, and the **Single Responsibility Principle (SRP)**.
+ * The core components are decoupled via abstract interfaces to maximize testability and reusability:
+ *
+ * @subsection arch_manager A. Service Orchestrator (HealthManager)
+ * The central service layer coordinating database access, hardware communication, metrics calculation,
+ * and asynchronous background synchronization via a custom multithreaded worker.
+ * - See: libscale::HealthManager
+ *
+ * @subsection arch_hardware B. Hardware Interface (IScaleDevice)
+ * Abstract interface encapsulating USB physical connection protocol logic. 
+ * The concrete implementation `UsbScaleDevice` uses `libusb` and features an event-driven hotplug monitoring thread.
+ * - See: libscale::IScaleDevice, libscale::UsbScaleDevice
+ *
+ * @subsection arch_calculator C. Calculation Engine (IBioImpedanceCalculator)
+ * Processes raw scale payloads (impedance at 5 kHz and 50 kHz, raw weight) and computes high-level metrics
+ * (BMI, body fat, body water, muscle mass, daily kilocalorie needs) based on formula algorithms.
+ * - See: libscale::IBioImpedanceCalculator, libscale::BioImpedanceCalculatorV1
+ *
+ * @subsection arch_database D. Data Persistence (IDatabaseManager)
+ * Abstract boundary managing health profile storage. Concrete subclass `SqliteDatabaseManager` leverages
+ * `sqlite_orm` with specialized converters mapping custom strong physical units safely to databases.
+ * - See: libscale::IDatabaseManager, libscale::SqliteDatabaseManager, sqlite_orm
+ *
+ * ---
+ *
+ * @section quickstart 2. Quick Start Example
+ *
+ * The following C++ example demonstrates initializing the backend services, registering a user profile,
+ * and reading stored measurements:
+ *
+ * @code{.cpp}
+ * #include <memory>
+ * #include <iostream>
+ * #include "libscale/database_impl.hpp"
+ * #include "libscale/device.hpp"
+ * #include "libscale/manager.hpp"
+ *
+ * int main() {
+ *     // 1. Instantiate SQLite storage layer
+ *     auto database = std::make_unique<libscale::SqliteDatabaseManager>();
+ *     if (!database->initialize("libscale_health.db")) {
+ *         std::cerr << "Failed to initialize database!" << std::endl;
+ *         return 1;
+ *     }
+ *
+ *     // 2. Instantiate USB hardware communication layer
+ *     auto device = std::make_unique<libscale::UsbScaleDevice>();
+ *
+ *     // 3. Coordinate under HealthManager orchestrator (injecting dependencies)
+ *     libscale::HealthManager manager(*database, *device);
+ *
+ *     // 4. Register a user profile
+ *     manager.add_user("Alice Miller");
+ *     
+ *     // 5. Fetch and print user names
+ *     auto users = manager.get_users();
+ *     for (const auto& user : users) {
+ *         std::cout << "User Slot [" << user.slot_id << "]: " << user.name << std::endl;
+ *     }
+ *
+ *     return 0;
+ * }
+ * @endcode
+ */
