@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <object class="GtkApplicationWindow" id="main_window">
+    <property name="title">Comfort Select Dashboard</property>
+    <property name="default-width">1000</property>
+    <property name="default-height">700</property>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkHeaderBar">
+            <child type="start">
+              <object class="GtkButton" id="sync_button">
+                <property name="label">Sync Scale</property>
+                <style>
+                  <class name="suggested-action"/>
+                </style>
+              </object>
+            </child>
+            <child type="start">
+              <object class="GtkStackSwitcher">
+                <property name="stack">main_stack</property>
+              </object>
+            </child>
+            <child type="end">
+              <object class="GtkLabel" id="status_label">
+                <property name="label">Disconnected</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkPaned">
+            <property name="shrink-start-child">false</property>
+            <property name="shrink-end-child">false</property>
+            <child type="start">
+              <object class="GtkListBox" id="user_list">
+                <property name="width-request">200</property>
+              </object>
+            </child>
+            <child type="end">
+              <object class="GtkStack" id="main_stack">
+                <child>
+                  <object class="GtkStackPage">
+                    <property name="name">dashboard</property>
+                    <property name="title">Dashboard</property>
+                    <property name="child">
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">20</property>
+                        <property name="margin-top">20</property>
+                        <property name="margin-bottom">20</property>
+                        <property name="margin-start">20</property>
+                        <property name="margin-end">20</property>
+                        <child>
+                          <object class="GtkBox" id="graph_container">
+                            <property name="vexpand">true</property>
+                            <property name="hexpand">true</property>
+                            <style>
+                              <class name="main-graph-container"/>
+                            </style>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox" id="range_toolbar">
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">8</property>
+                            <property name="halign">fill</property>
+                            <property name="valign">center</property>
+                            <style>
+                              <class name="range-toolbar"/>
+                            </style>
+                            <child>
+                              <object class="GtkButton" id="range_30d">
+                                <property name="label">30d</property>
+                                <style><class name="range-button"/></style>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="range_90d">
+                                <property name="label">90d</property>
+                                <style><class name="range-button"/></style>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="range_1y">
+                                <property name="label">1y</property>
+                                <style><class name="range-button"/></style>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="range_all">
+                                <property name="label">All</property>
+                                <style><class name="range-button"/><class name="selected"/></style>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkSeparator">
+                                <property name="orientation">vertical</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="range_start_label">
+                                <property name="label">--</property>
+                                <property name="width-chars">10</property>
+                                <style><class name="range-date-label"/></style>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkScale" id="range_start_slider">
+                                <property name="hexpand">true</property>
+                                <property name="draw-value">false</property>
+                                <property name="adjustment">
+                                  <object class="GtkAdjustment" id="range_start_adj">
+                                    <property name="lower">0</property>
+                                    <property name="upper">100</property>
+                                    <property name="value">0</property>
+                                    <property name="step-increment">1</property>
+                                  </object>
+                                </property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkScale" id="range_end_slider">
+                                <property name="hexpand">true</property>
+                                <property name="draw-value">false</property>
+                                <property name="adjustment">
+                                  <object class="GtkAdjustment" id="range_end_adj">
+                                    <property name="lower">0</property>
+                                    <property name="upper">100</property>
+                                    <property name="value">100</property>
+                                    <property name="step-increment">1</property>
+                                  </object>
+                                </property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="range_end_label">
+                                <property name="label">--</property>
+                                <property name="width-chars">10</property>
+                                <style><class name="range-date-label"/></style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkFlowBox" id="metrics_flowbox">
+                            <property name="valign">start</property>
+                            <property name="max-children-per-line">5</property>
+                            <property name="min-children-per-line">1</property>
+                            <property name="selection-mode">none</property>
+                            <property name="column-spacing">10</property>
+                            <property name="row-spacing">10</property>
+                            <child>
+                              <object class="GtkButton" id="card_weight">
+                                <style><class name="metric-card"/><class name="selected"/></style>
+                                <property name="child">
+                                  <object class="GtkBox">
+                                    <property name="orientation">vertical</property>
+                                    <child><object class="GtkLabel"><property name="label">Weight</property><style><class name="metric-label"/></style></object></child>
+                                    <child><object class="GtkLabel" id="val_weight"><property name="label">--.- kg</property><style><class name="metric-value"/></style></object></child>
+                                    <child><object class="GtkBox" id="spark_weight"><property name="height-request">30</property></object></child>
+                                  </object>
+                                </property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="card_bmi">
+                                <style><class name="metric-card"/></style>
+                                <property name="child">
+                                  <object class="GtkBox">
+                                    <property name="orientation">vertical</property>
+                                    <child><object class="GtkLabel"><property name="label">BMI</property><style><class name="metric-label"/></style></object></child>
+                                    <child><object class="GtkLabel" id="val_bmi"><property name="label">--.-</property><style><class name="metric-value"/></style></object></child>
+                                    <child><object class="GtkBox" id="spark_bmi"><property name="height-request">30</property></object></child>
+                                  </object>
+                                </property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="card_fat">
+                                <style><class name="metric-card"/></style>
+                                <property name="child">
+                                  <object class="GtkBox">
+                                    <property name="orientation">vertical</property>
+                                    <child><object class="GtkLabel"><property name="label">Body Fat</property><style><class name="metric-label"/></style></object></child>
+                                    <child><object class="GtkLabel" id="val_fat"><property name="label">--.- %</property><style><class name="metric-value"/></style></object></child>
+                                    <child><object class="GtkBox" id="spark_fat"><property name="height-request">30</property></object></child>
+                                  </object>
+                                </property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="card_water">
+                                <style><class name="metric-card"/></style>
+                                <property name="child">
+                                  <object class="GtkBox">
+                                    <property name="orientation">vertical</property>
+                                    <child><object class="GtkLabel"><property name="label">Water</property><style><class name="metric-label"/></style></object></child>
+                                    <child><object class="GtkLabel" id="val_water"><property name="label">--.- %</property><style><class name="metric-value"/></style></object></child>
+                                    <child><object class="GtkBox" id="spark_water"><property name="height-request">30</property></object></child>
+                                  </object>
+                                </property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="card_muscle">
+                                <style><class name="metric-card"/></style>
+                                <property name="child">
+                                  <object class="GtkBox">
+                                    <property name="orientation">vertical</property>
+                                    <child><object class="GtkLabel"><property name="label">Muscle</property><style><class name="metric-label"/></style></object></child>
+                                    <child><object class="GtkLabel" id="val_muscle"><property name="label">--.- %</property><style><class name="metric-value"/></style></object></child>
+                                    <child><object class="GtkBox" id="spark_muscle"><property name="height-request">30</property></object></child>
+                                  </object>
+                                </property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkStackPage">
+                    <property name="name">users</property>
+                    <property name="title">Users</property>
+                    <property name="child">
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">10</property>
+                        <property name="margin-top">20</property>
+                        <property name="margin-bottom">20</property>
+                        <property name="margin-start">20</property>
+                        <property name="margin-end">20</property>
+                        <child>
+                          <object class="GtkEntry" id="user_name_entry">
+                            <property name="placeholder-text">User Name</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="add_user_button">
+                            <property name="label">Add User</property>
+                          </object>
+                        </child>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkStackPage">
+                    <property name="name">settings</property>
+                    <property name="title">Settings</property>
+                    <property name="child">
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkCheckButton" id="dark_mode_check">
+                            <property name="label">Dark Mode</property>
+                          </object>
+                        </child>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkStackPage">
+                    <property name="name">history</property>
+                    <property name="title">History</property>
+                    <property name="child">
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkScrolledWindow">
+                            <property name="vexpand">true</property>
+                            <child>
+                              <object class="GtkListView" id="history_list"/>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox">
+                            <child>
+                              <object class="GtkButton" id="export_csv_button">
+                                <property name="label">Export CSV</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="export_json_button">
+                                <property name="label">Export JSON</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
