@@ -22,6 +22,10 @@ cmake --build .
 ```
 
 ### Windows (MSYS2 MINGW64)
+
+> [!WARNING]
+> Due to C++ ABI incompatibility with GTKmm and sigc++, **compiling with MSVC is strictly unsupported.** You must use the MSYS2 UCRT64 (or MINGW64) GCC compiler for Windows builds.
+
 ```bash
 pacman -S mingw-w64-x86_64-gtkmm4
 mkdir build && cd build
