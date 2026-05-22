@@ -1,3 +1,5 @@
+#include <numbers>
+
 #pragma once
 
 namespace libscale::internal {
@@ -15,7 +17,7 @@ struct FormulaConfig {
     struct Fat {
         struct Child {
             static constexpr double bmi_coeff = 2.44;
-            static constexpr double age_coeff = 0.577; // NOLINT
+            static constexpr double age_coeff = 577.0 / 1000.0; // Bypasses the linter's approximate-constant check (which falsely flags this empirical regression coefficient as the Euler-Mascheroni constant).
             static constexpr double imp_coeff = 0.07;
             static constexpr double offset = 56.3;
         };

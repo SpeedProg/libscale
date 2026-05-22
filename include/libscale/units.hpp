@@ -1,6 +1,6 @@
 #pragma once
 
-// NOLINTBEGIN(misc-non-private-member-variables-in-classes)
+// NOLINTBEGIN(misc-non-private-member-variables-in-classes): Physical units wrapper structs provide direct .value member access for performance and mathematical syntax clarity.
 
 #include <compare>
 #include <concepts>

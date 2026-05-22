@@ -1,6 +1,6 @@
 #pragma once
 
-// NOLINTBEGIN(misc-non-private-member-variables-in-classes)
+// NOLINTBEGIN(misc-non-private-member-variables-in-classes): Plain Data Transport structures utilize direct public fields to allow native structural bindings and avoid redundant accessors.
 
 #include <chrono>
 #include <cstdint>

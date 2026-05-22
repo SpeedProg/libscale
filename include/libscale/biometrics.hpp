@@ -1,6 +1,6 @@
 #pragma once
 
-// NOLINTBEGIN(misc-non-private-member-variables-in-classes)
+// NOLINTBEGIN(misc-non-private-member-variables-in-classes): Structs with helper methods are treated as classes by Clang-Tidy; public variables are preferred here to prevent getter/setter boilerplate for domain models.
 
 #include "units.hpp"
 #include "types.hpp"

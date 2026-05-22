@@ -1,5 +1,3 @@
-// NOLINTBEGIN(misc-include-cleaner)
-
 #include "libscale/database_impl.hpp"
 
 #include <sqlite_orm/sqlite_orm.h>
@@ -8,13 +6,14 @@
 #include <filesystem>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <shared_mutex>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "libscale/db_serializers.hpp"  // NOLINT(misc-include-cleaner): METAPROGRAMMING: Registering sqlite_orm custom serializers via template specializations.
 #include "libscale/types.hpp"
-#include "libscale/db_serializers.hpp"
 
 namespace libscale {
 
@@ -136,7 +135,8 @@ void SqliteDatabaseManager::add_measurement(const Measurement& measurement) {
         if (measurement.scale_raw) {
             auto raw_data = *measurement.scale_raw;
             raw_data.measurement_id = inserted_id;
-            storage.remove_all<ScaleRawData>(where(c(&ScaleRawData::measurement_id) == inserted_id));
+            storage.remove_all<ScaleRawData>(
+                where(c(&ScaleRawData::measurement_id) == inserted_id));
             storage.insert(raw_data);
         }
         return true;
@@ -148,11 +148,13 @@ void SqliteDatabaseManager::add_scale_raw_data(const ScaleRawData& raw_data) {
     get_storage(m_impl->storage.get()).replace(raw_data);
 }
 
-auto SqliteDatabaseManager::get_scale_raw_data(int measurement_id) const -> std::optional<ScaleRawData> {
+auto SqliteDatabaseManager::get_scale_raw_data(int measurement_id) const
+    -> std::optional<ScaleRawData> {
     std::shared_lock const lock(m_mutex);
     using namespace sqlite_orm;
-    auto raw_list = get_storage(m_impl->storage.get())
-                        .get_all<ScaleRawData>(where(c(&ScaleRawData::measurement_id) == measurement_id));
+    auto raw_list =
+        get_storage(m_impl->storage.get())
+            .get_all<ScaleRawData>(where(c(&ScaleRawData::measurement_id) == measurement_id));
     if (raw_list.empty()) {
         return std::nullopt;
     }
@@ -171,5 +173,3 @@ void SqliteDatabaseManager::delete_measurement(int measurement_id) {
 }
 
 }  // namespace libscale
-
-// NOLINTEND(misc-include-cleaner)

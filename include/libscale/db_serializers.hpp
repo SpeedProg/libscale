@@ -503,7 +503,7 @@ struct row_extractor<std::chrono::year_month_day> {
      * @return Extracted date.
      */
     static auto extract(sqlite3_stmt* stmt, int columnIndex) -> std::chrono::year_month_day {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): SQLite C API stores text columns as unsigned char*, requiring cast to standard char* interface.
         const char* str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, columnIndex));
         if (str == nullptr) {
             return {};
@@ -516,7 +516,7 @@ struct row_extractor<std::chrono::year_month_day> {
      * @return Extracted date.
      */
     static auto extract(sqlite3_value* value) -> std::chrono::year_month_day {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): SQLite C API stores text values as unsigned char*, requiring cast to standard char* interface.
         const char* str = reinterpret_cast<const char*>(sqlite3_value_text(value));
         if (str == nullptr) {
             return {};

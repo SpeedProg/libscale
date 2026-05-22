@@ -71,7 +71,7 @@ class TrendGraph : public Gtk::DrawingArea {
      * @param width Width of the drawing area.
      * @param height Height of the drawing area.
      */
-    void on_draw(const Cairo::RefPtr<Cairo::Context>& context, int width, int height); // NOLINT(bugprone-easily-swappable-parameters)
+    void on_draw(const Cairo::RefPtr<Cairo::Context>& context, int width, int height); // NOLINT(bugprone-easily-swappable-parameters): GTKmm Cairo rendering signature requires consecutive width/height dimensions.
 
    private:
     auto get_value(const Measurement& measurement) const -> double;

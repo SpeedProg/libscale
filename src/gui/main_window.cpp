@@ -1,5 +1,3 @@
-// NOLINTBEGIN(misc-include-cleaner)
-
 #include "gui/main_window.hpp"
 
 #include <gdkmm/display.h>
@@ -401,5 +399,3 @@ void MainWindow::on_add_user_clicked() {
 }
 
 }  // namespace libscale
-
-// NOLINTEND(misc-include-cleaner)

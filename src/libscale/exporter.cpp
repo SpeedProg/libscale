@@ -1,5 +1,5 @@
-// NOLINTBEGIN(misc-include-cleaner)
-
+// NOLINTBEGIN(misc-include-cleaner): Clang-Tidy's include-cleaner has a known circular
+// false-positive bug with nlohmann::json (claiming <nlohmann/json.hpp> is both unused and missing).
 #include "libscale/exporter.hpp"
 
 #include <format>

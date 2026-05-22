@@ -1,5 +1,3 @@
-// NOLINTBEGIN(misc-include-cleaner)
-
 #include "gui/graph.hpp"
 
 #include <cairomm/context.h>
@@ -14,6 +12,7 @@
 #include <cstddef>
 #include <format>
 #include <functional>
+#include <numbers>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -53,11 +52,14 @@ constexpr double point_border_width = 1.0;
 
 class CoordinateMapper {
    public:
+    // Mapper constructor requires min/max bounding coordinate pairs.
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     CoordinateMapper(double min_v, double max_v, double min_t, double max_t, int width_px,
                      int height_px, bool compact)
-         : m_range(max_v - min_v), m_width(width_px), m_height(height_px), m_padding(compact ? compact_padding : padding_size) {
-        
+        : m_range(max_v - min_v),
+          m_width(width_px),
+          m_height(height_px),
+          m_padding(compact ? compact_padding : padding_size) {
         if (m_range < min_range_threshold) {
             m_range = default_range_val;
         }
@@ -76,6 +78,7 @@ class CoordinateMapper {
         m_graph_height = m_height - multiplier_2 * m_padding;
     }
 
+    // Mapping function converts 2D (val, time) points to screen coordinates.
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     [[nodiscard]] auto map(double val, double time) const -> std::pair<double, double> {
         double const pos_x = m_padding + (time - m_min_time) * m_graph_width / m_time_range;
@@ -83,13 +86,27 @@ class CoordinateMapper {
         return {pos_x, pos_y};
     }
 
-    [[nodiscard]] auto padding() const noexcept -> double { return m_padding; }
-    [[nodiscard]] auto graph_height() const noexcept -> double { return m_graph_height; }
-    [[nodiscard]] auto graph_width() const noexcept -> double { return m_graph_width; }
-    [[nodiscard]] auto max_val() const noexcept -> double { return m_max_val; }
-    [[nodiscard]] auto range() const noexcept -> double { return m_range; }
-    [[nodiscard]] auto min_time() const noexcept -> double { return m_min_time; }
-    [[nodiscard]] auto time_range() const noexcept -> double { return m_time_range; }
+    [[nodiscard]] auto padding() const noexcept -> double {
+        return m_padding;
+    }
+    [[nodiscard]] auto graph_height() const noexcept -> double {
+        return m_graph_height;
+    }
+    [[nodiscard]] auto graph_width() const noexcept -> double {
+        return m_graph_width;
+    }
+    [[nodiscard]] auto max_val() const noexcept -> double {
+        return m_max_val;
+    }
+    [[nodiscard]] auto range() const noexcept -> double {
+        return m_range;
+    }
+    [[nodiscard]] auto min_time() const noexcept -> double {
+        return m_min_time;
+    }
+    [[nodiscard]] auto time_range() const noexcept -> double {
+        return m_time_range;
+    }
 
    private:
     double m_min_val = 0.0;
@@ -105,12 +122,13 @@ class CoordinateMapper {
     double m_graph_height = 0.0;
 };
 
-// Extracted template factory completely removes type-erasure overhead while adhering strictly to DRY
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+// Extracted template factory completely removes type-erasure overhead while adhering strictly to
+// DRY NOLINTNEXTLINE(bugprone-easily-swappable-parameters): Factory constructs 2D mapper with
+// standard screen width/height dimensions.
 template <typename ValProj, typename TimeProj>
 [[nodiscard]] auto create_mapper(const std::vector<Measurement>& data, int width, int height,
-                                 bool compact, ValProj val_proj, TimeProj time_proj)
-    -> std::optional<CoordinateMapper> {
+                                 bool compact, ValProj val_proj,
+                                 TimeProj time_proj) -> std::optional<CoordinateMapper> {
     if (data.empty()) {
         return std::nullopt;
     }
@@ -243,7 +261,8 @@ void TrendGraph::on_draw(const Cairo::RefPtr<Cairo::Context>& context, int width
             layout->get_pixel_size(text_w, text_h);
             context->set_source_rgb(label_color_component, label_color_component,
                                     label_color_component);
-            context->move_to(x_pos - text_w / divisor_2, height - mapper.padding() + x_label_offset);
+            context->move_to(x_pos - text_w / divisor_2,
+                             height - mapper.padding() + x_label_offset);
             layout->show_in_cairo_context(context);
         }
     }
@@ -267,13 +286,14 @@ void TrendGraph::on_draw(const Cairo::RefPtr<Cairo::Context>& context, int width
 
     if (!m_compact) {
         for (const auto& measurement : m_data) {
-            auto [pos_x, pos_y] = mapper.map(get_value(measurement), get_time_value(measurement.date));
+            auto [pos_x, pos_y] =
+                mapper.map(get_value(measurement), get_time_value(measurement.date));
             context->set_source_rgb(line_color_r, line_color_g, line_color_b);
-            context->arc(pos_x, pos_y, point_radius, 0, multiplier_2 * M_PI);
+            context->arc(pos_x, pos_y, point_radius, 0, multiplier_2 * std::numbers::pi);
             context->fill();
             context->set_source_rgb(1.0, 1.0, 1.0);
             context->set_line_width(point_border_width);
-            context->arc(pos_x, pos_y, point_radius, 0, multiplier_2 * M_PI);
+            context->arc(pos_x, pos_y, point_radius, 0, multiplier_2 * std::numbers::pi);
             context->stroke();
         }
     }
@@ -314,8 +334,9 @@ void TrendGraph::on_click(int /*n_press*/, double x_input, double y_input) {
         } else {
             unit = "%";
         }
-                               
-        m_popover_label.set_text(std::format("{:%F}\n{:.1f}{}", measurement.date, get_value(measurement), unit));
+
+        m_popover_label.set_text(
+            std::format("{:%F}\n{:.1f}{}", measurement.date, get_value(measurement), unit));
 
         auto [pos_x, pos_y] = mapper.map(get_value(measurement), get_time_value(measurement.date));
         Gdk::Rectangle const rect(static_cast<int>(pos_x), static_cast<int>(pos_y), 1, 1);
@@ -327,5 +348,3 @@ void TrendGraph::on_click(int /*n_press*/, double x_input, double y_input) {
 }
 
 }  // namespace libscale
-
-// NOLINTEND(misc-include-cleaner)

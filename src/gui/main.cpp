@@ -1,5 +1,3 @@
-// NOLINTBEGIN(misc-include-cleaner)
-
 #include <glibmm/miscutils.h>
 #include <gtkmm/application.h>
 #include <spdlog/logger.h>
@@ -13,11 +11,11 @@
 #include <memory>
 #include <string>
 
+#include "gui/main_window.hpp"
+#include "gui/settings.hpp"
 #include "libscale/database_impl.hpp"
 #include "libscale/device.hpp"
-#include "gui/main_window.hpp"
 #include "libscale/manager.hpp"
-#include "gui/settings.hpp"
 #include "libscale/scale_factory.hpp"
 
 static constexpr int log_max_size = 1024 * 1024 * 5;
@@ -54,7 +52,8 @@ auto main(int argc, char* argv[]) -> int {
             }
 
             static std::unique_ptr<libscale::IScaleDevice> device =
-                libscale::ScaleProviderFactory::create(libscale::ScaleProviderFactory::ProviderType::UsbComfortSelect);
+                libscale::ScaleProviderFactory::create(
+                    libscale::ScaleProviderFactory::ProviderType::UsbComfortSelect);
             static libscale::HealthManager manager(db_manager, *device);
 
             static libscale::JsonSettingsManager settings;
@@ -68,16 +67,14 @@ auto main(int argc, char* argv[]) -> int {
             // Connect physical device hotplug arrival events to the UI thread-safely.
             // Since the USB hotplug event thread runs in the background, we must bridge
             // the event to the main GTK thread via MainWindow's dispatcher.
-            device->signal_device_arrived().connect([window]() {
-                window->notify_device_arrived();
-            });
+            device->signal_device_arrived().connect(
+                [window]() { window->notify_device_arrived(); });
         } catch (const std::exception& error) {
             std::cerr << "Fatal error during startup: " << error.what() << '\n';
-            std::exit(1); // NOLINT(concurrency-mt-unsafe)
+            std::exit(1);  // NOLINT(concurrency-mt-unsafe): Terminating the process on fatal
+                           // startup error inside single-threaded UI initialization is safe.
         }
     });
 
     return app->run(argc, argv);
 }
-
-// NOLINTEND(misc-include-cleaner)

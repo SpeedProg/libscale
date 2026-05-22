@@ -1,5 +1,3 @@
-// NOLINTBEGIN(misc-include-cleaner)
-
 #include "gui/settings.hpp"
 
 #include <spdlog/spdlog.h>
@@ -68,5 +66,3 @@ void JsonSettingsManager::save() {
 }
 
 }  // namespace libscale
-
-// NOLINTEND(misc-include-cleaner)

@@ -21,14 +21,14 @@ constexpr double fat_tolerance = 0.1;
 constexpr double weight_tolerance = 0.01;
 }  // namespace
 
-TEST(CalculatorTest, BMI) {  // NOLINT
+TEST(CalculatorTest, BMI) {
     static constexpr double test_weight = 85.5;
     static constexpr int test_height = 180;
     EXPECT_NEAR(health_utils::calculate_bmi(units::Kg{test_weight}, units::Cm{test_height}),
                 expected_bmi, bmi_tolerance);
 }
 
-TEST(CalculatorTest, Age) {  // NOLINT
+TEST(CalculatorTest, Age) {
     using namespace std::chrono;
     const year_month_day birthday = 1990y / 1 / 1;
     const year_month_day today = 2023y / 10 / 1;
@@ -39,7 +39,7 @@ TEST(CalculatorTest, Age) {  // NOLINT
     }
 }
 
-TEST(CalculatorTest, BioImpedance) {  // NOLINT
+TEST(CalculatorTest, BioImpedance) {
     static constexpr int test_height = 180;
     static constexpr int test_activity = 3;
     static constexpr int test_year = 2023;
@@ -73,7 +73,10 @@ TEST(CalculatorTest, BioImpedance) {  // NOLINT
     }
 }
 
-TEST(DatabaseTest, RawDataPersistence) {  // NOLINT
+TEST(DatabaseTest,
+     RawDataPersistence) {  // NOLINT(readability-function-cognitive-complexity): GoogleTest macro
+                            // expansions generate deeply nested if-else structures that
+                            // artificially inflate cognitive complexity.
     static constexpr double test_weight = 75.5;
     static constexpr double test_fat = 15.2;
     static constexpr double test_water = 55.4;

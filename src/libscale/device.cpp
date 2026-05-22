@@ -1,6 +1,10 @@
 #include "libscale/device.hpp"
 
-#include <bits/types/struct_timeval.h>
+#if defined(_WIN32)
+#include <winsock2.h>  // NOLINT(misc-include-cleaner): Conditionally compiled header providing timeval struct on Windows.
+#else
+#include <sys/time.h>  // NOLINT(misc-include-cleaner): Conditionally compiled header providing timeval struct on POSIX.
+#endif
 #include <libusb.h>
 
 #include <algorithm>
@@ -94,6 +98,8 @@ UsbScaleDevice::UsbScaleDevice() {
         // Start polling thread with C++20 stop_token
         m_event_thread = std::jthread([this](const std::stop_token& stop_token) {
             while (!stop_token.stop_requested()) {
+                // timeval struct definition is provided by conditionally compiled platform headers.
+                // NOLINTNEXTLINE(misc-include-cleaner)
                 struct timeval time_val = {1, 0};
                 int const ret_evt =
                     libusb_handle_events_timeout_completed(m_ctx.get(), &time_val, nullptr);
@@ -135,10 +141,12 @@ auto UsbScaleDevice::connect() -> bool {
     }
     m_handle.reset(handle_raw);
 
+#ifdef __linux__
     // Detach kernel driver if necessary (Linux)
     if (libusb_kernel_driver_active(m_handle.get(), 0) == 1) {
         libusb_detach_kernel_driver(m_handle.get(), 0);
     }
+#endif
 
     if (libusb_claim_interface(m_handle.get(), 0) < 0) {
         cleanup_internal();
@@ -203,7 +211,8 @@ auto UsbScaleDevice::parse_users(std::span<const uint8_t> data) -> std::vector<U
         user.device_user_id = "slot_" + std::to_string(user.slot_id);
 
         // Name (10 chars) - use memcpy-safe construction via std::string from iterators
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        // Casting raw byte array containing name characters to const char* to construct
+        // std::string. NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         user.name = std::string(reinterpret_cast<const char*>(&data[i + off_user_name]), name_len);
         // Robust trimming
         user.name.erase(
@@ -217,10 +226,10 @@ auto UsbScaleDevice::parse_users(std::span<const uint8_t> data) -> std::vector<U
         // Telemetry Protocol Design: The sex/gender and physical activity level are tightly packed
         // into a single byte `sex_activity` to minimize packet transmission size.
         // - Bit 7 (MSB): Gender flag (0 = Male, 1 = Female).
-        // - Bits 0-2 (3 LSB): Activity level (values 0-4 representing Scarcely to Extremely active).
-        // We extract the gender by shifting the gender_bit (7) and extract the activity level
-        // using the 3-bit activity mask (0x07), adding 1 to translate the raw 0-indexed scale storage
-        // value to our 1-indexed domain model ActivityLevel.
+        // - Bits 0-2 (3 LSB): Activity level (values 0-4 representing Scarcely to Extremely
+        // active). We extract the gender by shifting the gender_bit (7) and extract the activity
+        // level using the 3-bit activity mask (0x07), adding 1 to translate the raw 0-indexed scale
+        // storage value to our 1-indexed domain model ActivityLevel.
         uint8_t const sex_activity = data[i + off_user_sex_activity];
         user.gender = ((sex_activity >> gender_bit) != 0) ? Gender::Female : Gender::Male;
         user.activity_level = static_cast<ActivityLevel>((sex_activity & activity_mask) + 1);
@@ -240,7 +249,8 @@ auto UsbScaleDevice::parse_users(std::span<const uint8_t> data) -> std::vector<U
     return users;
 }
 
-auto UsbScaleDevice::read_measurements(const std::string& device_user_id) -> std::vector<RawMeasurement> {
+auto UsbScaleDevice::read_measurements(const std::string& device_user_id)
+    -> std::vector<RawMeasurement> {
     if (m_handle == nullptr) {
         return {};
     }

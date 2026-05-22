@@ -1,0 +1,5 @@
+---
+Checks: 'modernize-*,cppcoreguidelines-*,readability-*,bugprone-*,performance-*,concurrency-*,clang-analyzer-*,misc-*,-cppcoreguidelines-pro-type-vararg,-cppcoreguidelines-pro-bounds-pointer-arithmetic,-clang-diagnostic-builtin-macro-redefined,-clang-diagnostic-ignored-optimization-argument,-readability-function-cognitive-complexity,-bugprone-easily-swappable-parameters,-readability-identifier-naming,-cppcoreguidelines-avoid-goto'
+WarningsAsErrors: '*'
+HeaderFilterRegex: 'src/.*|include/.*'
+...

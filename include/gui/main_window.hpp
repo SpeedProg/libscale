@@ -34,7 +34,7 @@ class MeasurementObject : public Glib::Object {
      * @return Reference-counted Glib wrapper instance.
      */
     static auto create(const Measurement& measurement) -> Glib::RefPtr<MeasurementObject> {
-        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory): Glib reference-counting architecture requires allocating with raw new to allow RefPtr to take reference-counted ownership.
         return Glib::make_refptr_for_instance<MeasurementObject>(new MeasurementObject(measurement));
     }
 

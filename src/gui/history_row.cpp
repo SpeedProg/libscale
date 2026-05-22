@@ -1,5 +1,3 @@
-// NOLINTBEGIN(misc-include-cleaner)
-
 #include "gui/history_row.hpp"
 
 #include <gtkmm/box.h>
@@ -55,5 +53,3 @@ auto HistoryRow::format_val(double val, const std::string& unit) -> std::string 
 }
 
 }  // namespace libscale
-
-// NOLINTEND(misc-include-cleaner)
