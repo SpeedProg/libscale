@@ -37,8 +37,8 @@
 
 #include "gui/graph.hpp"
 #include "gui/history_row.hpp"
-#include "libscale/manager.hpp"
 #include "gui/settings.hpp"
+#include "libscale/manager.hpp"
 #include "libscale/worker.hpp"
 
 namespace libscale {
@@ -54,7 +54,20 @@ static constexpr int range_preset_1y = 365;
 namespace {
 auto find_resource(const std::filesystem::path& rel_path) -> std::string {
     const std::vector<std::filesystem::path> search_roots = {
-        ".", "..", "../..", "src/gui", "../src/gui", "../../src/gui", "ui", "../ui", "../../ui"};
+        ".",
+        "..",
+        "resources",
+        "../resources",
+        "../share/comfort_select_dashboard",
+        "share/comfort_select_dashboard",
+        "/usr/share/comfort_select_dashboard",
+        "/usr/local/share/comfort_select_dashboard",
+        "src/gui",
+        "../src/gui",
+        "../../src/gui",
+        "ui",
+        "../ui",
+        "../../ui"};
 
     for (const auto& root : search_roots) {
         auto full_path = root / rel_path;
@@ -196,6 +209,7 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     }
 
     set_default_size(m_settings.get_window_width(), m_settings.get_window_height());
+    set_icon_name("comfort-select-dashboard");
     if (m_settings.get_is_maximized()) {
         maximize();
     }
@@ -205,7 +219,8 @@ MainWindow::~MainWindow() {
     int win_width = 0;
     int win_height = 0;
     get_default_size(win_width, win_height);
-    m_settings.set_window_state({win_width, win_height, is_maximized()});
+    m_settings.set_window_state(
+        {.width = win_width, .height = win_height, .maximized = is_maximized()});
     m_settings.save();
 }
 
@@ -255,7 +270,7 @@ void MainWindow::on_view_model_changed() {
 
     m_history_model->remove_all();
     auto history = filtered;
-    std::reverse(history.begin(), history.end());
+    std::ranges::reverse(history);
     for (const auto& measurement : history) {
         m_history_model->append(MeasurementObject::create(measurement));
     }
@@ -309,7 +324,7 @@ void MainWindow::on_user_selected(Gtk::ListBoxRow* row) {
         return;
     }
     int const index = row->get_index();
-    if (index >= 0 && index < static_cast<int>(m_users.size())) {
+    if (index >= 0 && std::cmp_less(index, m_users.size())) {
         m_current_user = m_users[static_cast<size_t>(index)];
         load_user_data(m_current_user->id);
     }

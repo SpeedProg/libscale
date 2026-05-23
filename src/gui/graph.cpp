@@ -81,7 +81,7 @@ class CoordinateMapper {
     // Mapping function converts 2D (val, time) points to screen coordinates.
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     [[nodiscard]] auto map(double val, double time) const -> std::pair<double, double> {
-        double const pos_x = m_padding + (time - m_min_time) * m_graph_width / m_time_range;
+        double const pos_x = m_padding + ((time - m_min_time) * m_graph_width / m_time_range);
         double const pos_y = m_height - m_padding - ((val - m_min_val) * m_graph_height / m_range);
         return {pos_x, pos_y};
     }
@@ -127,8 +127,8 @@ class CoordinateMapper {
 // standard screen width/height dimensions.
 template <typename ValProj, typename TimeProj>
 [[nodiscard]] auto create_mapper(const std::vector<Measurement>& data, int width, int height,
-                                 bool compact, ValProj val_proj,
-                                 TimeProj time_proj) -> std::optional<CoordinateMapper> {
+                                 bool compact, ValProj val_proj, TimeProj time_proj)
+    -> std::optional<CoordinateMapper> {
     if (data.empty()) {
         return std::nullopt;
     }
@@ -239,15 +239,15 @@ void TrendGraph::on_draw(const Cairo::RefPtr<Cairo::Context>& context, int width
             context->set_source_rgb(label_color_component, label_color_component,
                                     label_color_component);
             context->move_to(mapper.padding() - text_w - grid_label_offset,
-                             y_pos - text_h / divisor_2);
+                             y_pos - (text_h / divisor_2));
             layout->show_in_cairo_context(context);
         }
 
         static constexpr int num_x_segments = 4;
         for (int i = 0; i <= num_x_segments; ++i) {
             double const time_ratio = static_cast<double>(i) / num_x_segments;
-            double const current_time = mapper.min_time() + time_ratio * mapper.time_range();
-            double const x_pos = mapper.padding() + time_ratio * mapper.graph_width();
+            double const current_time = mapper.min_time() + (time_ratio * mapper.time_range());
+            double const x_pos = mapper.padding() + (time_ratio * mapper.graph_width());
 
             context->set_source_rgb(grid_color_component, grid_color_component,
                                     grid_color_component);
@@ -261,7 +261,7 @@ void TrendGraph::on_draw(const Cairo::RefPtr<Cairo::Context>& context, int width
             layout->get_pixel_size(text_w, text_h);
             context->set_source_rgb(label_color_component, label_color_component,
                                     label_color_component);
-            context->move_to(x_pos - text_w / divisor_2,
+            context->move_to(x_pos - (text_w / divisor_2),
                              height - mapper.padding() + x_label_offset);
             layout->show_in_cairo_context(context);
         }

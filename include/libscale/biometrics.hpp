@@ -28,7 +28,7 @@ struct Biometrics {
      * @return Generated Biometrics instance.
      */
     [[nodiscard]] static auto from_user(const UserProfile& user, units::Years age_at_meas) -> Biometrics {
-        return {age_at_meas, user.height, user.gender, user.activity_level};
+        return {.age=age_at_meas, .height=user.height, .gender=user.gender, .activity_level=user.activity_level};
     }
 
     /**

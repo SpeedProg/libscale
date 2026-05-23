@@ -17,7 +17,8 @@
 
 namespace libscale {
 
-inline auto make_sqlite_storage(const std::string& path) {
+namespace {
+auto make_sqlite_storage(const std::string& path) {
     return sqlite_orm::make_storage(
         path,
         sqlite_orm::make_table(
@@ -56,6 +57,7 @@ inline auto make_sqlite_storage(const std::string& path) {
             sqlite_orm::make_column("imp50k", &ScaleRawData::imp50k),
             sqlite_orm::foreign_key(&ScaleRawData::measurement_id).references(&Measurement::id)));
 }
+}  // namespace
 
 using Storage = decltype(make_sqlite_storage(""));
 

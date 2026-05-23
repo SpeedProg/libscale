@@ -36,8 +36,8 @@ auto calculate_bmi(units::Kg weight_kg, units::Cm height_cm) -> double {
     return weight_kg.value / (height_m * height_m);
 }
 
-auto calculate_age(std::chrono::year_month_day birthday,
-                   std::chrono::year_month_day today) -> std::optional<units::Years> {
+auto calculate_age(std::chrono::year_month_day birthday, std::chrono::year_month_day today)
+    -> std::optional<units::Years> {
     if (!birthday.ok() || !today.ok()) {
         return std::nullopt;
     }
@@ -112,9 +112,9 @@ auto BioImpedanceCalculatorV1::calculate_body_fat(const CalculationContext& ctx)
     //   absolute limits (5% male, 10% female) to avoid underestimating essential structural body
     //   fat.
     if (ctx.bio.age.value < FormulaConfig::child_age_limit) {
-        const double fat = Config::Child::bmi_coeff * ctx.bmi +
-                           Config::Child::age_coeff * ctx.bio.age.value +
-                           Config::Child::imp_coeff * ctx.imp50k.value - Config::Child::offset;
+        const double fat = (Config::Child::bmi_coeff * ctx.bmi) +
+                           (Config::Child::age_coeff * ctx.bio.age.value) +
+                           (Config::Child::imp_coeff * ctx.imp50k.value) - Config::Child::offset;
         return units::Percent{fat};
     }
 
@@ -125,8 +125,8 @@ auto BioImpedanceCalculatorV1::calculate_body_fat(const CalculationContext& ctx)
     const double limit =
         (ctx.bio.gender == Gender::Male) ? Config::Adult::male_limit : Config::Adult::female_limit;
 
-    const double base_fat = Config::Adult::bmi_coeff * ctx.bmi + age_coeff * ctx.bio.age.value +
-                            Config::Adult::imp_coeff * ctx.imp50k.value - offset;
+    const double base_fat = (Config::Adult::bmi_coeff * ctx.bmi) + (age_coeff * ctx.bio.age.value) +
+                            (Config::Adult::imp_coeff * ctx.imp50k.value) - offset;
     const double adjusted_fat =
         base_fat - get_fat_adjustment(ctx.bio.gender, ctx.bio.activity_level);
 
@@ -221,8 +221,8 @@ auto BioImpedanceCalculatorV1::get_activity_multiplier(ActivityLevel activity_le
     }
 }
 
-auto BioImpedanceCalculatorV1::get_fat_adjustment(Gender gender,
-                                                  ActivityLevel activity_level) -> double {
+auto BioImpedanceCalculatorV1::get_fat_adjustment(Gender gender, ActivityLevel activity_level)
+    -> double {
     using Config = FormulaConfig::Fat::ActivityAdj;
     if (activity_level == ActivityLevel::Sports) {
         return (gender == Gender::Male) ? Config::male_sports : Config::female_sports;
@@ -233,8 +233,8 @@ auto BioImpedanceCalculatorV1::get_fat_adjustment(Gender gender,
     return 0.0;
 }
 
-auto BioImpedanceCalculatorV1::get_muscle_offset(Gender gender,
-                                                 ActivityLevel activity_level) -> double {
+auto BioImpedanceCalculatorV1::get_muscle_offset(Gender gender, ActivityLevel activity_level)
+    -> double {
     using Config = FormulaConfig::Muscle;
     if (gender == Gender::Female) {
         if (activity_level == ActivityLevel::HighLevel) {
@@ -251,8 +251,8 @@ auto BioImpedanceCalculatorV1::get_muscle_offset(Gender gender,
     return Config::male_base_offset;
 }
 
-auto BioImpedanceCalculatorV1::get_water_offset(Gender gender,
-                                                ActivityLevel activity_level) -> double {
+auto BioImpedanceCalculatorV1::get_water_offset(Gender gender, ActivityLevel activity_level)
+    -> double {
     using Config = FormulaConfig::Water;
     if (gender == Gender::Female) {
         if (activity_level == ActivityLevel::Sports) {

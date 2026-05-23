@@ -64,9 +64,7 @@ void DashboardViewModel::apply_filter() {
         if (end_idx >= total) {
             end_idx = total - 1;
         }
-        if (start_idx > end_idx) {
-            start_idx = end_idx;
-        }
+        start_idx = std::min(start_idx, end_idx);
 
         m_filtered_data.assign(m_all_data.begin() + static_cast<long>(start_idx),
                                m_all_data.begin() + static_cast<long>(end_idx) + 1);

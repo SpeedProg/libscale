@@ -9,6 +9,7 @@
 
 namespace libscale {
 
+namespace {
 auto run_smoke_test() -> void {
     std::cout << "Starting CLI Smoke Test...\n";
 
@@ -47,7 +48,7 @@ auto run_smoke_test() -> void {
 
     std::cout << "CLI Smoke Test PASSED!\n";
 }
-
+}  // namespace
 }  // namespace libscale
 
 auto main() -> int {

@@ -1,10 +1,9 @@
-#include "libscale/device.hpp"
-
 #if defined(_WIN32)
 #include <winsock2.h>  // NOLINT(misc-include-cleaner): Conditionally compiled header providing timeval struct on Windows.
 #else
 #include <sys/time.h>  // NOLINT(misc-include-cleaner): Conditionally compiled header providing timeval struct on POSIX.
 #endif
+
 #include <libusb.h>
 
 #include <algorithm>
@@ -20,6 +19,7 @@
 #include <thread>
 #include <vector>
 
+#include "libscale/device.hpp"
 #include "libscale/types.hpp"
 
 namespace libscale {
@@ -100,7 +100,7 @@ UsbScaleDevice::UsbScaleDevice() {
             while (!stop_token.stop_requested()) {
                 // timeval struct definition is provided by conditionally compiled platform headers.
                 // NOLINTNEXTLINE(misc-include-cleaner)
-                struct timeval time_val = {1, 0};
+                struct timeval time_val = {.tv_sec = 1, .tv_usec = 0};
                 int const ret_evt =
                     libusb_handle_events_timeout_completed(m_ctx.get(), &time_val, nullptr);
                 if (ret_evt < 0 && ret_evt != LIBUSB_ERROR_INTERRUPTED) {
@@ -112,8 +112,8 @@ UsbScaleDevice::UsbScaleDevice() {
 }
 
 auto LIBUSB_CALL UsbScaleDevice::hotplug_callback(libusb_context* /*ctx*/, libusb_device* /*dev*/,
-                                                  libusb_hotplug_event /*event*/,
-                                                  void* user_data) -> int {
+                                                  libusb_hotplug_event /*event*/, void* user_data)
+    -> int {
     auto* self = static_cast<UsbScaleDevice*>(user_data);
     self->m_signal_arrived.emit();
     return 0;
@@ -215,11 +215,12 @@ auto UsbScaleDevice::parse_users(std::span<const uint8_t> data) -> std::vector<U
         // std::string. NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         user.name = std::string(reinterpret_cast<const char*>(&data[i + off_user_name]), name_len);
         // Robust trimming
-        user.name.erase(
-            std::find_if(user.name.rbegin(), user.name.rend(),
-                         [](unsigned char chr) { return (std::isspace(chr) == 0) && chr != '\0'; })
-                .base(),
-            user.name.end());
+        user.name.erase(std::ranges::find_if(user.name.rbegin(), user.name.rend(),
+                                             [](unsigned char chr) {
+                                                 return (std::isspace(chr) == 0) && chr != '\0';
+                                             })
+                            .base(),
+                        user.name.end());
 
         user.height = units::Cm{data[i + off_user_height]};
 
