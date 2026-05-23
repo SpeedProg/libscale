@@ -2,7 +2,6 @@
 #include <gtkmm/applicationwindow.h>
 #include <gtkmm/builder.h>
 #include <gtkmm/button.h>
-#include <gtkmm/entry.h>
 #include <gtkmm/label.h>
 #include <gtkmm/listbox.h>
 #include <gtkmm/listview.h>
@@ -100,8 +99,9 @@ class MainWindow : public Gtk::ApplicationWindow {
     void on_sync_clicked();
     void on_sync_complete(const SyncResult& result);
     void on_user_selected(Gtk::ListBoxRow* row);
-    void on_add_user_clicked();
     void refresh_user_list();
+    void update_profile_view();
+    [[nodiscard]] auto find_current_user_iterator() const -> std::vector<UserProfile>::const_iterator;
     void load_user_data(int user_id);
     void on_device_arrived();
     void on_metric_clicked(MetricType type);
@@ -128,8 +128,15 @@ class MainWindow : public Gtk::ApplicationWindow {
     Gtk::Label* m_status_label = nullptr;
     Gtk::ListBox* m_user_list = nullptr;
     Gtk::Box* m_graph_container = nullptr;
-    Gtk::Entry* m_user_name_entry = nullptr;
-    Gtk::Button* m_add_user_button = nullptr;
+
+    // Profile page fields
+    Gtk::Label* m_profile_name = nullptr;
+    Gtk::Label* m_profile_height = nullptr;
+    Gtk::Label* m_profile_gender = nullptr;
+    Gtk::Label* m_profile_activity = nullptr;
+    Gtk::Label* m_profile_birthday = nullptr;
+    Gtk::Label* m_profile_slot = nullptr;
+    Gtk::Label* m_profile_device_id = nullptr;
 
     // Metric Cards
     Gtk::Button* m_card_weight = nullptr;

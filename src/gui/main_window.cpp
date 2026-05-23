@@ -10,7 +10,6 @@
 #include <gtkmm/builder.h>
 #include <gtkmm/button.h>
 #include <gtkmm/cssprovider.h>
-#include <gtkmm/entry.h>
 #include <gtkmm/label.h>
 #include <gtkmm/listbox.h>
 #include <gtkmm/listboxrow.h>
@@ -29,7 +28,9 @@
 #include <filesystem>
 #include <format>
 #include <iostream>
+#include <iterator>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -37,6 +38,7 @@
 
 #include "gui/graph.hpp"
 #include "gui/history_row.hpp"
+#include "libscale/types.hpp"
 #include "gui/settings.hpp"
 #include "libscale/manager.hpp"
 #include "libscale/worker.hpp"
@@ -91,8 +93,13 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     m_status_label = builder->get_widget<Gtk::Label>("status_label");
     m_user_list = builder->get_widget<Gtk::ListBox>("user_list");
     m_graph_container = builder->get_widget<Gtk::Box>("graph_container");
-    m_user_name_entry = builder->get_widget<Gtk::Entry>("user_name_entry");
-    m_add_user_button = builder->get_widget<Gtk::Button>("add_user_button");
+    m_profile_name = builder->get_widget<Gtk::Label>("profile_name");
+    m_profile_height = builder->get_widget<Gtk::Label>("profile_height");
+    m_profile_gender = builder->get_widget<Gtk::Label>("profile_gender");
+    m_profile_activity = builder->get_widget<Gtk::Label>("profile_activity");
+    m_profile_birthday = builder->get_widget<Gtk::Label>("profile_birthday");
+    m_profile_slot = builder->get_widget<Gtk::Label>("profile_slot");
+    m_profile_device_id = builder->get_widget<Gtk::Label>("profile_device_id");
 
     m_card_weight = builder->get_widget<Gtk::Button>("card_weight");
     m_card_bmi = builder->get_widget<Gtk::Button>("card_bmi");
@@ -140,8 +147,6 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
 
     // Signals
     m_sync_button->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_sync_clicked));
-    m_add_user_button->signal_clicked().connect(
-        sigc::mem_fun(*this, &MainWindow::on_add_user_clicked));
     m_user_list->signal_row_selected().connect(sigc::mem_fun(*this, &MainWindow::on_user_selected));
 
     m_card_weight->signal_clicked().connect([this]() { on_metric_clicked(MetricType::Weight); });
@@ -321,12 +326,15 @@ void MainWindow::on_sync_complete(const SyncResult& result) {
 
 void MainWindow::on_user_selected(Gtk::ListBoxRow* row) {
     if (row == nullptr) {
+        m_current_user = std::nullopt;
+        update_profile_view();
         return;
     }
     int const index = row->get_index();
     if (index >= 0 && std::cmp_less(index, m_users.size())) {
         m_current_user = m_users[static_cast<size_t>(index)];
         load_user_data(m_current_user->id);
+        update_profile_view();
     }
 }
 
@@ -337,6 +345,23 @@ void MainWindow::refresh_user_list() {
     m_users = m_manager.get_users();
     for (const auto& user : m_users) {
         m_user_list->append(*Gtk::make_managed<Gtk::Label>(user.name));
+    }
+
+    if (!m_users.empty()) {
+        int index_to_select = 0;
+        if (m_current_user) {
+            auto user_it = find_current_user_iterator();
+            if (user_it != m_users.end()) {
+                index_to_select = static_cast<int>(std::distance(m_users.cbegin(), user_it));
+            }
+        }
+        auto* row = m_user_list->get_row_at_index(index_to_select);
+        if (row != nullptr) {
+            m_user_list->select_row(*row);
+        }
+    } else {
+        m_current_user = std::nullopt;
+        update_profile_view();
     }
 }
 
@@ -403,14 +428,67 @@ void MainWindow::notify_device_arrived() {
     m_hotplug_dispatcher.emit();
 }
 
-void MainWindow::on_add_user_clicked() {
-    std::string const name = m_user_name_entry->get_text();
-    if (name.empty()) {
+void MainWindow::update_profile_view() {
+    if (!m_current_user) {
+        m_profile_name->set_text("--");
+        m_profile_height->set_text("--");
+        m_profile_gender->set_text("--");
+        m_profile_activity->set_text("--");
+        m_profile_birthday->set_text("--");
+        m_profile_slot->set_text("--");
+        m_profile_device_id->set_text("--");
         return;
     }
-    m_manager.add_user(name);
-    m_user_name_entry->set_text("");
-    refresh_user_list();
+
+    auto user_it = find_current_user_iterator();
+    if (user_it != m_users.end()) {
+        m_current_user = *user_it;
+    }
+
+    const auto& user = *m_current_user;
+    m_profile_name->set_text(user.name);
+    m_profile_height->set_text(std::format("{} cm", user.height.value));
+
+    std::string const gender_str = (user.gender == Gender::Male) ? "Male" : "Female";
+    m_profile_gender->set_text(gender_str);
+
+    std::string activity_str;
+    switch (user.activity_level) {
+        case ActivityLevel::Scarcely:
+            activity_str = "Scarcely Active";
+            break;
+        case ActivityLevel::Light:
+            activity_str = "Lightly Active";
+            break;
+        case ActivityLevel::HomeGarden:
+            activity_str = "Moderately Active";
+            break;
+        case ActivityLevel::Sports:
+            activity_str = "Very Active";
+            break;
+        case ActivityLevel::HighLevel:
+            activity_str = "Extremely Active";
+            break;
+    }
+    m_profile_activity->set_text(activity_str);
+
+    if (user.birthday.ok()) {
+        m_profile_birthday->set_text(std::format("{:%F}", user.birthday));
+    } else {
+        m_profile_birthday->set_text("--");
+    }
+
+    m_profile_slot->set_text(std::to_string(user.slot_id));
+    m_profile_device_id->set_text(user.device_user_id);
+}
+
+auto MainWindow::find_current_user_iterator() const -> std::vector<UserProfile>::const_iterator {
+    if (!m_current_user) {
+        return m_users.end();
+    }
+    return std::ranges::find_if(m_users, [this](const UserProfile& user_profile) {
+        return user_profile.id == m_current_user->id;
+    });
 }
 
 }  // namespace libscale

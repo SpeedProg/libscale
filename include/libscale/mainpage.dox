@@ -62,11 +62,8 @@
  *
  *     // 3. Coordinate under HealthManager orchestrator (injecting dependencies)
  *     libscale::HealthManager manager(*database, *device);
- *
- *     // 4. Register a user profile
- *     manager.add_user("Alice Miller");
  *     
- *     // 5. Fetch and print user names
+ *     // 4. Fetch and print user names
  *     auto users = manager.get_users();
  *     for (const auto& user : users) {
  *         std::cout << "User Slot [" << user.slot_id << "]: " << user.name << std::endl;

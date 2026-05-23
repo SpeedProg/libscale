@@ -16,14 +16,6 @@
 
 namespace libscale {
 
-namespace {
-constexpr int default_user_height = 175;
-constexpr Gender default_gender = Gender::Female;
-constexpr ActivityLevel default_activity = ActivityLevel::HomeGarden;
-constexpr std::chrono::year_month_day default_birthday{std::chrono::year(1990),
-                                                       std::chrono::month(1), std::chrono::day(1)};
-}  // namespace
-
 HealthManager::HealthManager(IDatabaseManager& database, IScaleDevice& device,
                              std::unique_ptr<IBioImpedanceCalculator> calculator)
     : m_database(database),
@@ -36,25 +28,6 @@ HealthManager::~HealthManager() = default;
 
 auto HealthManager::get_users() const -> std::vector<UserProfile> {
     return m_database.get_users();
-}
-
-void HealthManager::add_user(const std::string& name) {
-    if (name.empty()) {
-        return;
-    }
-
-    auto existing_users = m_database.get_users();
-
-    UserProfile user;
-    user.name = name;
-    user.slot_id = static_cast<int>(existing_users.size() + 1);
-    user.device_user_id = "slot_" + std::to_string(user.slot_id);
-    user.height = units::Cm{default_user_height};
-    user.gender = default_gender;
-    user.activity_level = default_activity;
-    user.birthday = default_birthday;
-
-    m_database.add_user(user);
 }
 
 void HealthManager::update_user(const UserProfile& user) {

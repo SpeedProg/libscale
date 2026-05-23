@@ -47,12 +47,6 @@ class HealthManager {
     [[nodiscard]] auto get_users() const -> std::vector<UserProfile>;
     
     /**
-     * @brief Registers a new user profile with a given name in the database.
-     * @param name The display name of the user.
-     */
-    void add_user(const std::string& name);
-    
-    /**
      * @brief Updates biometric details of an existing user profile in the database.
      * @param user The updated user profile containing valid modified fields.
      */

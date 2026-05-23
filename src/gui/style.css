@@ -92,3 +92,34 @@ listitem:hover {
     color: #888;
     font-variant-numeric: tabular-nums;
 }
+
+/* Profile Tab Styling */
+.profile-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 30px;
+    min-width: 400px;
+    margin: 20px auto;
+}
+
+.profile-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+.profile-label {
+    font-size: 1.0rem;
+    color: #888;
+    font-weight: 600;
+}
+
+.profile-value {
+    font-size: 1.0rem;
+    font-weight: 700;
+    color: #fff;
+}
