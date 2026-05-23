@@ -30,3 +30,14 @@ target_include_directories(comfort_select_dashboard SYSTEM PRIVATE ${GTKMM_INCLU
 # Install UI and CSS files
 configure_file(${CMAKE_SOURCE_DIR}/ui/main_window.ui ${CMAKE_BINARY_DIR}/ui/main_window.ui COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/style.css ${CMAKE_BINARY_DIR}/src/gui/style.css COPYONLY)
+
+# Install executable target
+install(TARGETS comfort_select_dashboard
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Install runtime UI and CSS styling resources
+install(FILES ${CMAKE_SOURCE_DIR}/ui/main_window.ui
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/comfort_select_dashboard)
+
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/style.css
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/comfort_select_dashboard)
