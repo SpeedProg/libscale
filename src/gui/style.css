@@ -100,7 +100,7 @@ listitem:hover {
     border-radius: 12px;
     padding: 30px;
     min-width: 400px;
-    margin: 20px auto;
+    margin: 20px;
 }
 
 .profile-title {
@@ -131,5 +131,5 @@ listitem:hover {
     border-radius: 12px;
     padding: 30px;
     min-width: 400px;
-    margin: 20px auto;
+    margin: 20px;
 }
