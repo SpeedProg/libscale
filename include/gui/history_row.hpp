@@ -2,6 +2,7 @@
 #include <gtkmm/box.h>
 #include <gtkmm/label.h>
 #include "libscale/types.hpp"
+#include "gui/settings.hpp"
 
 namespace libscale {
 
@@ -19,8 +20,9 @@ class HistoryRow : public Gtk::Box {
     /**
      * @brief Binds a computed measurement structure and formats the column labels with physical units.
      * @param measurement Measurement record to format and bind.
+     * @param units Metric or Imperial preference.
      */
-    void set_measurement(const Measurement& measurement);
+    void set_measurement(const Measurement& measurement, UnitSystem units, bool use_v2 = false);
 
    private:
     Gtk::Label* m_date_label;

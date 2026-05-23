@@ -7,6 +7,7 @@
 
 #include <format>
 
+#include "gui/settings.hpp"
 #include "libscale/types.hpp"
 
 namespace libscale {
@@ -39,13 +40,35 @@ HistoryRow::HistoryRow() : Gtk::Box(Gtk::Orientation::HORIZONTAL, list_item_spac
     m_muscle_label = create_label(col_width_muscle);
 }
 
-void HistoryRow::set_measurement(const Measurement& meas) {
+void HistoryRow::set_measurement(const Measurement& meas, UnitSystem units,
+                                 bool use_v2) {  // NOLINT(misc-include-cleaner)
     m_date_label->set_text(std::format("{:%F}", meas.date));
-    m_weight_label->set_text(format_val(meas.weight.value, " kg"));
+    if (units == UnitSystem::Imperial) {
+        m_weight_label->set_text(format_val(meas.weight.value * kg_to_lbs_factor, " lbs"));
+    } else {
+        m_weight_label->set_text(format_val(meas.weight.value, " kg"));
+    }
     m_bmi_label->set_text(format_val(meas.bmi, ""));
-    m_fat_label->set_text(format_val(meas.body_fat.value, "%"));
-    m_water_label->set_text(format_val(meas.water.value, "%"));
-    m_muscle_label->set_text(format_val(meas.muscle_mass.value, "%"));
+
+    double body_fat = meas.body_fat.value;
+    double water = meas.water.value;
+    double muscle = meas.muscle_mass.value;
+
+    if (use_v2) {
+        if (meas.body_fat_v2.value > 0.0) {
+            body_fat = meas.body_fat_v2.value;
+        }
+        if (meas.water_v2.value > 0.0) {
+            water = meas.water_v2.value;
+        }
+        if (meas.muscle_mass_v2.value > 0.0) {
+            muscle = meas.muscle_mass_v2.value;
+        }
+    }
+
+    m_fat_label->set_text(format_val(body_fat, "%"));
+    m_water_label->set_text(format_val(water, "%"));
+    m_muscle_label->set_text(format_val(muscle, "%"));
 }
 
 auto HistoryRow::format_val(double val, const std::string& unit) -> std::string {

@@ -76,6 +76,48 @@ struct FormulaConfig {
         static constexpr double mult_high = 2.0;
         static constexpr double mult_default = 1.2;
     };
+
+    struct V2 {
+        struct Fat {
+            static constexpr double male_rfm_base = 64.0;
+            static constexpr double female_rfm_base = 76.0;
+            static constexpr double rfm_multiplier = 20.0;
+
+            static constexpr double kyle_base = -4.104;
+            static constexpr double kyle_h2z_coeff = 0.518;
+            static constexpr double kyle_weight_coeff = 0.231;
+            static constexpr double kyle_age_coeff = -0.130;
+            static constexpr double kyle_gender_coeff = 4.229;
+            static constexpr double male_limit = 5.0;
+            static constexpr double female_limit = 10.0;
+        };
+
+        struct Water {
+            static constexpr double ecw_h2z_coeff = 0.188;
+            static constexpr double ecw_weight_coeff = 0.12;
+            static constexpr double ecw_offset = 1.2;
+
+            static constexpr double tbw_h2z_coeff = 0.25;
+            static constexpr double tbw_weight_coeff = 0.18;
+            static constexpr double tbw_offset = 2.0;
+        };
+
+        struct Muscle {
+            static constexpr double kim_h2z_coeff = 0.244;
+            static constexpr double kim_weight_coeff = 0.268;
+            static constexpr double kim_gender_coeff = 3.39;
+            static constexpr double kim_age_coeff = -0.098;
+            static constexpr double kim_offset = 2.7;
+        };
+
+        struct Energy {
+            static constexpr double weight_coeff = 10.0;
+            static constexpr double height_coeff = 6.25;
+            static constexpr double age_coeff = 5.0;
+            static constexpr double male_offset = 5.0;
+            static constexpr double female_offset = -161.0;
+        };
+    };
 };
 
 } // namespace libscale::internal

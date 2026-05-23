@@ -5,34 +5,40 @@
 #include <glibmm/refptr.h>
 #include <glibmm/ustring.h>
 #include <gtk/gtk.h>
+#include <gtkmm/adjustment.h>
 #include <gtkmm/applicationwindow.h>
 #include <gtkmm/box.h>
 #include <gtkmm/builder.h>
 #include <gtkmm/button.h>
+#include <gtkmm/checkbutton.h>
 #include <gtkmm/cssprovider.h>
 #include <gtkmm/dialog.h>
 #include <gtkmm/enums.h>
 #include <gtkmm/filechooser.h>
+#include <gtkmm/filechooserdialog.h>
+#include <gtkmm/filefilter.h>
 #include <gtkmm/label.h>
 #include <gtkmm/listbox.h>
 #include <gtkmm/listboxrow.h>
 #include <gtkmm/listitem.h>
 #include <gtkmm/listview.h>
+#include <gtkmm/messagedialog.h>
 #include <gtkmm/noselection.h>
 #include <gtkmm/object.h>
 #include <gtkmm/scale.h>
 #include <gtkmm/signallistitemfactory.h>
+#include <gtkmm/spinbutton.h>
 #include <gtkmm/stylecontext.h>
-#include <gtkmm/filechooserdialog.h>
-#include <gtkmm/filefilter.h>
-#include <gtkmm/messagedialog.h>
 #include <sigc++/functors/mem_fun.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <exception>
 #include <filesystem>
 #include <format>
+#include <fstream>
+#include <functional>
 #include <iostream>
 #include <iterator>
 #include <memory>
@@ -44,12 +50,11 @@
 
 #include "gui/graph.hpp"
 #include "gui/history_row.hpp"
-#include "libscale/types.hpp"
-#include "gui/settings.hpp"
-#include "libscale/manager.hpp"
-#include "libscale/worker.hpp"
+#include "gui/settings.hpp"  //
 #include "libscale/exporter.hpp"
-#include <fstream>
+#include "libscale/manager.hpp"
+#include "libscale/types.hpp"
+#include "libscale/worker.hpp"
 
 namespace libscale {
 
@@ -108,6 +113,8 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     m_profile_birthday = builder->get_widget<Gtk::Label>("profile_birthday");
     m_profile_slot = builder->get_widget<Gtk::Label>("profile_slot");
     m_profile_device_id = builder->get_widget<Gtk::Label>("profile_device_id");
+    m_profile_waist = builder->get_widget<Gtk::Label>("profile_waist");
+    m_btn_edit_waist = builder->get_widget<Gtk::Button>("btn_edit_waist");
 
     m_card_weight = builder->get_widget<Gtk::Button>("card_weight");
     m_card_bmi = builder->get_widget<Gtk::Button>("card_bmi");
@@ -156,6 +163,11 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     // Signals
     m_sync_button->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_sync_clicked));
     m_user_list->signal_row_selected().connect(sigc::mem_fun(*this, &MainWindow::on_user_selected));
+    m_btn_edit_waist->signal_clicked().connect([this]() {
+        if (m_current_user) {
+            prompt_waist_change(*m_current_user);
+        }
+    });
 
     m_card_weight->signal_clicked().connect([this]() { on_metric_clicked(MetricType::Weight); });
     m_card_bmi->signal_clicked().connect([this]() { on_metric_clicked(MetricType::BMI); });
@@ -171,6 +183,8 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     m_range_end_slider = builder->get_widget<Gtk::Scale>("range_end_slider");
     m_range_start_label = builder->get_widget<Gtk::Label>("range_start_label");
     m_range_end_label = builder->get_widget<Gtk::Label>("range_end_label");
+    m_formula_v2_toggle = builder->get_widget<Gtk::CheckButton>("formula_v2_toggle");
+    m_formula_v2_toggle->signal_toggled().connect([this]() { on_view_model_changed(); });
 
     m_range_30d->signal_clicked().connect([this]() {
         m_active_preset = range_preset_30d;
@@ -193,10 +207,12 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     m_export_json_button = builder->get_widget<Gtk::Button>("export_json_button");
 
     if (m_export_csv_button != nullptr) {
-        m_export_csv_button->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_export_csv_clicked));
+        m_export_csv_button->signal_clicked().connect(
+            sigc::mem_fun(*this, &MainWindow::on_export_csv_clicked));
     }
     if (m_export_json_button != nullptr) {
-        m_export_json_button->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_export_json_clicked));
+        m_export_json_button->signal_clicked().connect(
+            sigc::mem_fun(*this, &MainWindow::on_export_json_clicked));
     }
 
     auto on_slider_changed = [this]() {
@@ -214,6 +230,45 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
 
     m_hotplug_dispatcher.connect(sigc::mem_fun(*this, &MainWindow::on_device_arrived));
     m_sync_complete_dispatcher.connect([this]() { on_sync_complete(m_last_sync_result); });
+
+    m_unit_metric_radio = builder->get_widget<Gtk::CheckButton>("unit_metric_radio");
+    m_unit_imperial_radio = builder->get_widget<Gtk::CheckButton>("unit_imperial_radio");
+
+    UnitSystem const units = m_settings.get_unit_system();  // NOLINT(misc-include-cleaner)
+    m_main_graph->set_unit_system(units);
+    m_spark_weight->set_unit_system(units);
+    m_spark_bmi->set_unit_system(units);
+    m_spark_fat->set_unit_system(units);
+    m_spark_water->set_unit_system(units);
+    m_spark_muscle->set_unit_system(units);
+
+    if (units == UnitSystem::Imperial) {
+        m_unit_imperial_radio->set_active(true);
+    } else {
+        m_unit_metric_radio->set_active(true);
+    }
+
+    auto on_unit_changed = [this]() {
+        UnitSystem const units_val = m_unit_imperial_radio->get_active()
+                                         ? UnitSystem::Imperial
+                                         : UnitSystem::Metric;  // NOLINT(misc-include-cleaner)
+        if (units_val != m_settings.get_unit_system()) {
+            m_settings.set_unit_system(units_val);
+            m_settings.save();
+
+            m_main_graph->set_unit_system(units_val);
+            m_spark_weight->set_unit_system(units_val);
+            m_spark_bmi->set_unit_system(units_val);
+            m_spark_fat->set_unit_system(units_val);
+            m_spark_water->set_unit_system(units_val);
+            m_spark_muscle->set_unit_system(units_val);
+
+            on_view_model_changed();
+            update_profile_view();
+        }
+    };
+    m_unit_metric_radio->signal_toggled().connect(on_unit_changed);
+    m_unit_imperial_radio->signal_toggled().connect(on_unit_changed);
 
     setup_history_list();
     refresh_user_list();
@@ -236,6 +291,7 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     if (m_settings.get_is_maximized()) {
         maximize();
     }
+    check_missing_waist_circumferences();
 }
 
 MainWindow::~MainWindow() {
@@ -265,8 +321,12 @@ void MainWindow::on_view_model_changed() {
         label->set_text(std::format("{:.1f}{}", val, unit));
     };
 
+    UnitSystem const units = m_settings.get_unit_system();  // NOLINT(misc-include-cleaner)
+
+    bool const use_v2 = m_formula_v2_toggle->get_active();
+
     if (filtered.empty()) {
-        m_val_weight->set_text("--.- kg");
+        m_val_weight->set_text(units == UnitSystem::Imperial ? "--.- lbs" : "--.- kg");
         m_val_bmi->set_text("--.-");
         m_val_fat->set_text("--.- %");
         m_val_water->set_text("--.- %");
@@ -275,14 +335,41 @@ void MainWindow::on_view_model_changed() {
         m_range_end_label->set_text("--");
     } else {
         const auto& latest = filtered.back();
-        update_label(m_val_weight, latest.weight.value, " kg");
+        if (units == UnitSystem::Imperial) {
+            update_label(m_val_weight, latest.weight.value * kg_to_lbs_factor, " lbs");
+        } else {
+            update_label(m_val_weight, latest.weight.value, " kg");
+        }
         update_label(m_val_bmi, latest.bmi, "");
-        update_label(m_val_fat, latest.body_fat.value, " %");
-        update_label(m_val_water, latest.water.value, " %");
-        update_label(m_val_muscle, latest.muscle_mass.value, " %");
+
+        double body_fat = latest.body_fat.value;
+        double water = latest.water.value;
+        double muscle = latest.muscle_mass.value;
+        if (use_v2) {
+            if (latest.body_fat_v2.value > 0.0) {
+                body_fat = latest.body_fat_v2.value;
+            }
+            if (latest.water_v2.value > 0.0) {
+                water = latest.water_v2.value;
+            }
+            if (latest.muscle_mass_v2.value > 0.0) {
+                muscle = latest.muscle_mass_v2.value;
+            }
+        }
+
+        update_label(m_val_fat, body_fat, " %");
+        update_label(m_val_water, water, " %");
+        update_label(m_val_muscle, muscle, " %");
         m_range_start_label->set_text(std::format("{:%F}", filtered.front().date));
         m_range_end_label->set_text(std::format("{:%F}", filtered.back().date));
     }
+
+    m_main_graph->set_use_v2(use_v2);
+    m_spark_weight->set_use_v2(use_v2);
+    m_spark_bmi->set_use_v2(use_v2);
+    m_spark_fat->set_use_v2(use_v2);
+    m_spark_water->set_use_v2(use_v2);
+    m_spark_muscle->set_use_v2(use_v2);
 
     m_main_graph->set_data(filtered);
     m_spark_weight->set_data(filtered);
@@ -333,6 +420,7 @@ void MainWindow::on_sync_complete(const SyncResult& result) {
         m_status_label->set_text("Sync complete");
         if (!result.new_users.empty()) {
             refresh_user_list();
+            check_missing_waist_circumferences();
         }
         if (m_current_user) {
             load_user_data(m_current_user->id);
@@ -419,7 +507,7 @@ void MainWindow::setup_history_list() {
     m_history_list->set_model(Gtk::NoSelection::create(m_history_model));
     auto factory = Gtk::SignalListItemFactory::create();
     factory->signal_setup().connect(&MainWindow::on_setup_list_item);
-    factory->signal_bind().connect(&MainWindow::on_bind_list_item);
+    factory->signal_bind().connect(sigc::mem_fun(*this, &MainWindow::on_bind_list_item));
     m_history_list->set_factory(factory);
 }
 
@@ -431,7 +519,9 @@ void MainWindow::on_bind_list_item(const Glib::RefPtr<Gtk::ListItem>& list_item)
     auto row_obj = std::dynamic_pointer_cast<MeasurementObject>(list_item->get_item());
     auto* row_widget = dynamic_cast<HistoryRow*>(list_item->get_child());
     if (row_obj && (row_widget != nullptr)) {
-        row_widget->set_measurement(row_obj->get_measurement());
+        bool const use_v2 = m_formula_v2_toggle->get_active();
+        row_widget->set_measurement(row_obj->get_measurement(), m_settings.get_unit_system(),
+                                    use_v2);  // NOLINT(misc-include-cleaner)
     }
 }
 
@@ -455,6 +545,7 @@ void MainWindow::update_profile_view() {
         m_profile_birthday->set_text("--");
         m_profile_slot->set_text("--");
         m_profile_device_id->set_text("--");
+        m_profile_waist->set_text("--");
         return;
     }
 
@@ -465,7 +556,17 @@ void MainWindow::update_profile_view() {
 
     const auto& user = *m_current_user;
     m_profile_name->set_text(user.name);
-    m_profile_height->set_text(std::format("{} cm", user.height.value));
+
+    UnitSystem const units = m_settings.get_unit_system();  // NOLINT(misc-include-cleaner)
+    if (units == UnitSystem::Imperial) {
+        double const total_inches =
+            std::round(user.height.value / cm_per_inch);  // NOLINT(misc-include-cleaner)
+        const int feet = static_cast<int>(total_inches) / inches_per_foot;
+        const int inches = static_cast<int>(total_inches) % inches_per_foot;
+        m_profile_height->set_text(std::format("{}' {}\"", feet, inches));
+    } else {
+        m_profile_height->set_text(std::format("{} cm", user.height.value));
+    }
 
     std::string const gender_str = (user.gender == Gender::Male) ? "Male" : "Female";
     m_profile_gender->set_text(gender_str);
@@ -498,6 +599,18 @@ void MainWindow::update_profile_view() {
 
     m_profile_slot->set_text(std::to_string(user.slot_id));
     m_profile_device_id->set_text(user.device_user_id);
+
+    if (user.waist_circumference && user.waist_circumference->value > 0) {
+        if (units == UnitSystem::Imperial) {
+            double const inches = std::round(user.waist_circumference->value /
+                                             cm_per_inch);  // NOLINT(misc-include-cleaner)
+            m_profile_waist->set_text(std::format("{:.0f} in", inches));
+        } else {
+            m_profile_waist->set_text(std::format("{} cm", user.waist_circumference->value));
+        }
+    } else {
+        m_profile_waist->set_text("--");
+    }
 }
 
 auto MainWindow::find_current_user_iterator() const -> std::vector<UserProfile>::const_iterator {
@@ -512,7 +625,8 @@ auto MainWindow::find_current_user_iterator() const -> std::vector<UserProfile>:
 void MainWindow::on_export_csv_clicked() {
     const auto& data = m_view_model.get_filtered_data();
     if (data.empty()) {
-        show_info_dialog("No Data to Export", "There are no measurements in the current view to export.");
+        show_info_dialog("No Data to Export",
+                         "There are no measurements in the current view to export.");
         return;
     }
 
@@ -546,7 +660,8 @@ void MainWindow::on_export_csv_clicked() {
                         out << DataExporter::to_csv(data);
                         m_status_label->set_text("Exported CSV to " + path);
                     } catch (const std::exception& e) {
-                        show_error_dialog("Export Failed", std::format("Failed to save CSV file:\n{}", e.what()));
+                        show_error_dialog("Export Failed",
+                                          std::format("Failed to save CSV file:\n{}", e.what()));
                     }
                 }
             }
@@ -559,7 +674,8 @@ void MainWindow::on_export_csv_clicked() {
 void MainWindow::on_export_json_clicked() {
     const auto& data = m_view_model.get_filtered_data();
     if (data.empty()) {
-        show_info_dialog("No Data to Export", "There are no measurements in the current view to export.");
+        show_info_dialog("No Data to Export",
+                         "There are no measurements in the current view to export.");
         return;
     }
 
@@ -593,7 +709,8 @@ void MainWindow::on_export_json_clicked() {
                         out << DataExporter::to_json(data);
                         m_status_label->set_text("Exported JSON to " + path);
                     } catch (const std::exception& e) {
-                        show_error_dialog("Export Failed", std::format("Failed to save JSON file:\n{}", e.what()));
+                        show_error_dialog("Export Failed",
+                                          std::format("Failed to save JSON file:\n{}", e.what()));
                     }
                 }
             }
@@ -603,32 +720,218 @@ void MainWindow::on_export_json_clicked() {
     m_json_export_dialog->show();
 }
 
-void MainWindow::show_info_dialog(const std::string& title, const std::string& message) { // NOLINT(bugprone-easily-swappable-parameters)
-    if (!m_info_dialog) {
-        m_info_dialog = std::make_unique<Gtk::MessageDialog>(
-            *this, title, false, Gtk::MessageType::INFO, Gtk::ButtonsType::OK, true);
-        m_info_dialog->signal_response().connect([this](int) {
-            m_info_dialog->hide();
-        });
-    } else {
-        m_info_dialog->set_title(title);
-    }
+void MainWindow::show_info_dialog(
+    const std::string& title,      // NOLINT(bugprone-easily-swappable-parameters)
+    const std::string& message) {  // NOLINT(bugprone-easily-swappable-parameters)
+    m_info_dialog = std::make_unique<Gtk::MessageDialog>(
+        *this, title, false, Gtk::MessageType::INFO, Gtk::ButtonsType::OK, true);
     m_info_dialog->set_secondary_text(message);
+    m_info_dialog->signal_response().connect([this](int) { m_info_dialog->hide(); });
     m_info_dialog->show();
 }
 
-void MainWindow::show_error_dialog(const std::string& title, const std::string& message) { // NOLINT(bugprone-easily-swappable-parameters)
-    if (!m_error_dialog) {
-        m_error_dialog = std::make_unique<Gtk::MessageDialog>(
-            *this, title, false, Gtk::MessageType::ERROR, Gtk::ButtonsType::OK, true);
-        m_error_dialog->signal_response().connect([this](int) {
-            m_error_dialog->hide();
-        });
-    } else {
-        m_error_dialog->set_title(title);
-    }
+void MainWindow::show_error_dialog(
+    const std::string& title,      // NOLINT(bugprone-easily-swappable-parameters)
+    const std::string& message) {  // NOLINT(bugprone-easily-swappable-parameters)
+    m_error_dialog = std::make_unique<Gtk::MessageDialog>(
+        *this, title, false, Gtk::MessageType::ERROR, Gtk::ButtonsType::OK, true);
     m_error_dialog->set_secondary_text(message);
+    m_error_dialog->signal_response().connect([this](int) { m_error_dialog->hide(); });
     m_error_dialog->show();
+}
+
+void MainWindow::check_missing_waist_circumferences() {
+    m_users_needing_waist.clear();
+    for (const auto& user : m_users) {
+        if (!user.waist_circumference || user.waist_circumference->value <= 0) {
+            m_users_needing_waist.push_back(user);
+        }
+    }
+    prompt_next_missing_waist();
+}
+
+void MainWindow::prompt_next_missing_waist() {
+    if (m_users_needing_waist.empty()) {
+        return;
+    }
+    UserProfile user = m_users_needing_waist.front();
+    m_users_needing_waist.erase(m_users_needing_waist.begin());
+
+    auto* dialog = Gtk::make_managed<Gtk::Dialog>();
+    dialog->set_title(std::format("Enter Waist Circumference for {}", user.name));
+    dialog->set_transient_for(*this);
+    dialog->set_modal(true);
+
+    static constexpr int dialog_box_spacing = 10;
+    static constexpr int dialog_box_margin = 15;
+    auto* content_area = dialog->get_content_area();
+    auto* box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, dialog_box_spacing);
+    box->set_margin(dialog_box_margin);
+
+    auto* label = Gtk::make_managed<Gtk::Label>(
+        std::format("Please enter the waist circumference for {}:", user.name));
+
+    UnitSystem const units = m_settings.get_unit_system();
+    static constexpr double default_lower_cm = 30.0;
+    static constexpr double default_upper_cm = 250.0;
+    static constexpr double default_def_val_cm = 80.0;
+    static constexpr double default_lower_in = 12.0;
+    static constexpr double default_upper_in = 100.0;
+    static constexpr double default_def_val_in = 32.0;
+    static constexpr double step_increment = 1.0;
+    static constexpr double page_increment = 5.0;
+    static constexpr int box_spacing = 5;
+
+    double lower = default_lower_cm;
+    double upper = default_upper_cm;
+    double def_val = default_def_val_cm;
+    std::string unit_label = " cm";
+    if (units == UnitSystem::Imperial) {
+        lower = default_lower_in;
+        upper = default_upper_in;
+        def_val = default_def_val_in;
+        unit_label = " inches";
+    }
+
+    auto* spin_box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, box_spacing);
+    auto* spin_button = Gtk::make_managed<Gtk::SpinButton>(
+        Gtk::Adjustment::create(def_val, lower, upper, step_increment, page_increment, 0.0),
+        step_increment, 0);
+    auto* suffix = Gtk::make_managed<Gtk::Label>(unit_label);
+    spin_box->append(*spin_button);
+    spin_box->append(*suffix);
+
+    box->append(*label);
+    box->append(*spin_box);
+    content_area->append(*box);
+
+    dialog->add_button("Cancel", Gtk::ResponseType::CANCEL);
+    dialog->add_button("Save", Gtk::ResponseType::ACCEPT);
+
+    dialog->signal_response().connect(
+        [this, dialog, user, spin_button, units](int response_id) mutable {
+            if (response_id == Gtk::ResponseType::ACCEPT) {
+                double val = spin_button->get_value();
+                if (units == UnitSystem::Imperial) {
+                    val = std::round(val * cm_per_inch);  // Convert to cm
+                }
+                user.waist_circumference = units::Cm{static_cast<int>(val)};
+                m_manager.update_user(user);
+                refresh_user_list();
+
+                prompt_recalculate_history(user, [this]() { prompt_next_missing_waist(); });
+            } else {
+                prompt_next_missing_waist();
+            }
+            dialog->hide();
+        });
+    dialog->show();
+}
+
+void MainWindow::prompt_recalculate_history(const UserProfile& user,
+                                            const std::function<void()>& on_finished) {
+    auto* dialog = Gtk::make_managed<Gtk::MessageDialog>(
+        *this, "Recalculate Historical Measurements?", false, Gtk::MessageType::QUESTION,
+        Gtk::ButtonsType::YES_NO, true);
+    dialog->set_secondary_text(
+        std::format("Would you like to recalculate all past measurements for {} using the updated "
+                    "waist circumference?\n\nIf Yes, existing RFM and V2 body composition metrics "
+                    "will be updated. If No, this change will only affect future measurements.",
+                    user.name));
+
+    dialog->signal_response().connect([this, dialog, user, on_finished](int response_id) {
+        if (response_id == Gtk::ResponseType::YES) {
+            recalculate_user_history(user.id);
+        }
+        dialog->hide();
+        if (on_finished) {
+            on_finished();
+        }
+    });
+    dialog->show();
+}
+
+void MainWindow::prompt_waist_change(const UserProfile& user) {
+    auto* dialog = Gtk::make_managed<Gtk::Dialog>();
+    dialog->set_title(std::format("Edit Waist Circumference for {}", user.name));
+    dialog->set_transient_for(*this);
+    dialog->set_modal(true);
+
+    static constexpr int dialog_box_spacing = 10;
+    static constexpr int dialog_box_margin = 15;
+    auto* content_area = dialog->get_content_area();
+    auto* box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, dialog_box_spacing);
+    box->set_margin(dialog_box_margin);
+
+    auto* label = Gtk::make_managed<Gtk::Label>(
+        std::format("Enter new waist circumference for {}:", user.name));
+
+    UnitSystem const units = m_settings.get_unit_system();
+    static constexpr double default_lower_cm = 30.0;
+    static constexpr double default_upper_cm = 250.0;
+    static constexpr double default_def_val_cm = 80.0;
+    static constexpr double default_lower_in = 12.0;
+    static constexpr double default_upper_in = 100.0;
+    static constexpr double default_def_val_in = 32.0;
+    static constexpr double step_increment = 1.0;
+    static constexpr double page_increment = 5.0;
+    static constexpr int box_spacing = 5;
+
+    double lower = default_lower_cm;
+    double upper = default_upper_cm;
+    double def_val = default_def_val_cm;
+    std::string unit_label = " cm";
+
+    if (user.waist_circumference && user.waist_circumference->value > 0) {
+        if (units == UnitSystem::Imperial) {
+            def_val = std::round(user.waist_circumference->value / cm_per_inch);
+        } else {
+            def_val = user.waist_circumference->value;
+        }
+    }
+
+    if (units == UnitSystem::Imperial) {
+        lower = default_lower_in;
+        upper = default_upper_in;
+        unit_label = " inches";
+    }
+
+    auto* spin_box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, box_spacing);
+    auto* spin_button = Gtk::make_managed<Gtk::SpinButton>(
+        Gtk::Adjustment::create(def_val, lower, upper, step_increment, page_increment, 0.0),
+        step_increment, 0);
+    auto* suffix = Gtk::make_managed<Gtk::Label>(unit_label);
+    spin_box->append(*spin_button);
+    spin_box->append(*suffix);
+
+    box->append(*label);
+    box->append(*spin_box);
+    content_area->append(*box);
+
+    dialog->add_button("Cancel", Gtk::ResponseType::CANCEL);
+    dialog->add_button("Save", Gtk::ResponseType::ACCEPT);
+
+    dialog->signal_response().connect(
+        [this, dialog, user_copy = user, spin_button, units](int response_id) mutable {
+            if (response_id == Gtk::ResponseType::ACCEPT) {
+                double val = spin_button->get_value();
+                if (units == UnitSystem::Imperial) {
+                    val = std::round(val * cm_per_inch);  // Convert to cm
+                }
+                user_copy.waist_circumference = units::Cm{static_cast<int>(val)};
+                m_manager.update_user(user_copy);
+                refresh_user_list();
+
+                prompt_recalculate_history(user_copy, nullptr);
+            }
+            dialog->hide();
+        });
+    dialog->show();
+}
+
+void MainWindow::recalculate_user_history(int user_id) {
+    m_manager.recalculate_measurements(user_id);
+    load_user_data(user_id);
 }
 
 }  // namespace libscale

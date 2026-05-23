@@ -20,6 +20,8 @@ struct Biometrics {
     Gender gender = Gender::Female;
     /// Daily physical activity level.
     ActivityLevel activity_level = ActivityLevel::HomeGarden;
+    /// User's waist circumference in centimeters (optional).
+    std::optional<units::Cm> waist_circumference;
 
     /**
      * @brief Factory method creating a Biometrics context from a UserProfile and calculated age.
@@ -28,7 +30,7 @@ struct Biometrics {
      * @return Generated Biometrics instance.
      */
     [[nodiscard]] static auto from_user(const UserProfile& user, units::Years age_at_meas) -> Biometrics {
-        return {.age=age_at_meas, .height=user.height, .gender=user.gender, .activity_level=user.activity_level};
+        return {.age=age_at_meas, .height=user.height, .gender=user.gender, .activity_level=user.activity_level, .waist_circumference=user.waist_circumference};
     }
 
     /**

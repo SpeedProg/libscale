@@ -24,9 +24,6 @@ void JsonSettingsManager::load(const std::filesystem::path& config_path) {
         nlohmann::json settings_json;
         input_file >> settings_json;
 
-        if (settings_json.contains("dark_mode")) {
-            m_dark_mode = settings_json["dark_mode"];
-        }
         if (settings_json.contains("units")) {
             std::string const unit_str = settings_json["units"];
             m_units = (unit_str == "imperial") ? UnitSystem::Imperial : UnitSystem::Metric;
@@ -51,7 +48,7 @@ void JsonSettingsManager::load(const std::filesystem::path& config_path) {
 void JsonSettingsManager::save() {
     try {
         nlohmann::json settings_json;
-        settings_json["dark_mode"] = m_dark_mode;
+
         settings_json["units"] = (m_units == UnitSystem::Imperial) ? "imperial" : "metric";
         settings_json["last_user_id"] = m_last_user_id;
         settings_json["win_width"] = m_window_width;

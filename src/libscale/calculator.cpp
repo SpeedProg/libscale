@@ -89,6 +89,16 @@ auto BioImpedanceCalculatorV1::calculate(const RawMeasurement& raw, const UserPr
     measurement.water = round_percent(calculate_water_content(ctx));
     measurement.energy = calculate_energy_needs(ctx, measurement.muscle_mass);
 
+    measurement.waist_circumference = user.waist_circumference;
+    double rfm_val = 0.0;
+    measurement.body_fat_v2 = round_percent(calculate_body_fat_v2(ctx, rfm_val));
+    measurement.rfm = round_to_one_decimal(rfm_val);
+    units::Percent ecw_val{0.0};
+    measurement.water_v2 = round_percent(calculate_water_content_v2(ctx, ecw_val));
+    measurement.ecw_v2 = round_percent(ecw_val);
+    measurement.muscle_mass_v2 = round_percent(calculate_muscle_mass_v2(ctx));
+    measurement.energy_v2 = calculate_energy_needs_v2(ctx);
+
     measurement.scale_raw = ScaleRawData{.id = 0,
                                          .measurement_id = 0,
                                          .weight_raw = raw.weight_raw,
@@ -201,6 +211,94 @@ auto BioImpedanceCalculatorV1::calculate_energy_needs(const CalculationContext& 
         activity_mult;
 
     return units::Kcal{static_cast<int>(std::round(bmr))};
+}
+
+auto BioImpedanceCalculatorV1::calculate_body_fat_v2(const CalculationContext& ctx, double& rfm_out)
+    -> units::Percent {
+    using Config = FormulaConfig::V2::Fat;
+
+    if (ctx.bio.waist_circumference && ctx.bio.waist_circumference->value > 0) {
+        const auto waist_cm = static_cast<double>(ctx.bio.waist_circumference->value);
+        const auto height_cm = static_cast<double>(ctx.bio.height.value);
+        const double base =
+            (ctx.bio.gender == Gender::Male) ? Config::male_rfm_base : Config::female_rfm_base;
+        rfm_out = base - Config::rfm_multiplier * (height_cm / waist_cm);
+    } else {
+        rfm_out = 0.0;
+    }
+
+    if (ctx.imp50k.value <= 0 || ctx.weight.value <= 0) {
+        return units::Percent{0.0};
+    }
+    const double height_cm_sq = ctx.height_sq * FormulaConfig::cm_per_m * FormulaConfig::cm_per_m;
+    const double gender_val = (ctx.bio.gender == Gender::Male) ? 1.0 : 0.0;
+    const double fat_free_mass = Config::kyle_base +
+                                 (Config::kyle_h2z_coeff * height_cm_sq / ctx.imp50k.value) +
+                                 (Config::kyle_weight_coeff * ctx.weight.value) +
+                                 (Config::kyle_age_coeff * static_cast<double>(ctx.bio.age.value)) +
+                                 (Config::kyle_gender_coeff * gender_val);
+
+    const double fat_mass = ctx.weight.value - fat_free_mass;
+    const double fat_pct = (fat_mass / ctx.weight.value) * FormulaConfig::percentage_factor;
+    const double limit =
+        (ctx.bio.gender == Gender::Male) ? Config::male_limit : Config::female_limit;
+    return units::Percent{std::max(fat_pct, limit)};
+}
+
+auto BioImpedanceCalculatorV1::calculate_water_content_v2(const CalculationContext& ctx,
+                                                          units::Percent& ecw_out)
+    -> units::Percent {
+    using Config = FormulaConfig::V2::Water;
+    if (ctx.imp50k.value <= 0 || ctx.imp5k.value <= 0 || ctx.weight.value <= 0) {
+        ecw_out = units::Percent{0.0};
+        return units::Percent{0.0};
+    }
+    const double height_cm_sq = ctx.height_sq * FormulaConfig::cm_per_m * FormulaConfig::cm_per_m;
+
+    const double extra_cellular_water = (Config::ecw_h2z_coeff * (height_cm_sq / ctx.imp5k.value)) +
+                                        (Config::ecw_weight_coeff * ctx.weight.value) +
+                                        Config::ecw_offset;
+
+    const double total_body_water = (Config::tbw_h2z_coeff * (height_cm_sq / ctx.imp50k.value)) +
+                                    (Config::tbw_weight_coeff * ctx.weight.value) +
+                                    Config::tbw_offset;
+
+    ecw_out = units::Percent{(extra_cellular_water / ctx.weight.value) *
+                             FormulaConfig::percentage_factor};
+    return units::Percent{(total_body_water / ctx.weight.value) * FormulaConfig::percentage_factor};
+}
+
+auto BioImpedanceCalculatorV1::calculate_muscle_mass_v2(const CalculationContext& ctx)
+    -> units::Percent {
+    using Config = FormulaConfig::V2::Muscle;
+    if (ctx.imp50k.value <= 0 || ctx.weight.value <= 0) {
+        return units::Percent{0.0};
+    }
+    const double height_cm_sq = ctx.height_sq * FormulaConfig::cm_per_m * FormulaConfig::cm_per_m;
+    const double gender_val = (ctx.bio.gender == Gender::Male) ? 1.0 : 0.0;
+
+    const double skeletal_muscle_mass =
+        (Config::kim_h2z_coeff * (height_cm_sq / ctx.imp50k.value)) +
+        (Config::kim_weight_coeff * ctx.weight.value) + (Config::kim_gender_coeff * gender_val) +
+        (Config::kim_age_coeff * static_cast<double>(ctx.bio.age.value)) + Config::kim_offset;
+
+    return units::Percent{(skeletal_muscle_mass / ctx.weight.value) *
+                          FormulaConfig::percentage_factor};
+}
+
+auto BioImpedanceCalculatorV1::calculate_energy_needs_v2(const CalculationContext& ctx)
+    -> units::Kcal {
+    using Config = FormulaConfig::V2::Energy;
+    const double gender_offset =
+        (ctx.bio.gender == Gender::Male) ? Config::male_offset : Config::female_offset;
+    const double activity_mult = get_activity_multiplier(ctx.bio.activity_level);
+
+    const double basal_metabolic_rate =
+        (Config::weight_coeff * ctx.weight.value) +
+        (Config::height_coeff * static_cast<double>(ctx.bio.height.value)) -
+        (Config::age_coeff * static_cast<double>(ctx.bio.age.value)) + gender_offset;
+
+    return units::Kcal{static_cast<int>(std::round(basal_metabolic_rate * activity_mult))};
 }
 
 auto BioImpedanceCalculatorV1::get_activity_multiplier(ActivityLevel activity_level) -> double {

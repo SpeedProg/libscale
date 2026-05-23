@@ -56,6 +56,8 @@ struct UserProfile {
     ActivityLevel activity_level = ActivityLevel::HomeGarden;
     /// User's birthday.
     std::chrono::year_month_day birthday{};
+    /// User's waist circumference in centimeters (optional).
+    std::optional<units::Cm> waist_circumference;
     /// The hardware profile slot ID on the scale (1-8).
     int slot_id = 0;
     /// The abstract scale-specific identifier (e.g. "slot_1").
@@ -131,6 +133,20 @@ struct Measurement {
     units::Years age{0};
     /// Daily energy requirements in kilocalories.
     units::Kcal energy{0};
+    /// User's waist circumference at the time of measurement.
+    std::optional<units::Cm> waist_circumference;
+    /// Calculated body fat percentage (V2).
+    units::Percent body_fat_v2{0.0};
+    /// Calculated body water percentage (V2).
+    units::Percent water_v2{0.0};
+    /// Calculated muscle mass percentage (V2).
+    units::Percent muscle_mass_v2{0.0};
+    /// Daily energy requirements in kilocalories (V2).
+    units::Kcal energy_v2{0};
+    /// Calculated extra-cellular water percentage (V2).
+    units::Percent ecw_v2{0.0};
+    /// Relative Fat Mass (RFM) metric.
+    double rfm = 0.0;
     /// Non-serialized raw physical telemetry (Pattern 3 transient field).
     std::optional<ScaleRawData> scale_raw;
     /// Tracks which formula version was used to calculate these metrics.

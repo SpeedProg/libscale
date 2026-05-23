@@ -53,6 +53,13 @@ class HealthManager {
     void update_user(const UserProfile& user);
     
     /**
+     * @brief Recalculates all historical measurements for a specific user.
+     * Useful when user attributes (like height, birthdate, or waist circumference) are updated.
+     * @param user_id The unique database ID of the user.
+     */
+    void recalculate_measurements(int user_id);
+    
+    /**
      * @brief Deletes a user profile and all associated measurements from the database.
      * @param user_id The unique database ID of the user.
      */

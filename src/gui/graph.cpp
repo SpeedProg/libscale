@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "gui/settings.hpp"
 #include "libscale/types.hpp"
 
 namespace libscale {
@@ -176,17 +177,39 @@ void TrendGraph::set_compact_mode(bool compact) {
     queue_draw();
 }
 
+void TrendGraph::set_unit_system(UnitSystem units) {  // NOLINT(misc-include-cleaner)
+    m_units = units;
+    queue_draw();
+}
+
+void TrendGraph::set_use_v2(bool use_v2) {
+    m_use_v2 = use_v2;
+    queue_draw();
+}
+
 auto TrendGraph::get_value(const Measurement& measurement) const -> double {
     switch (m_metric) {
         case MetricType::Weight:
+            if (m_units == UnitSystem::Imperial) {
+                return measurement.weight.value * kg_to_lbs_factor;
+            }
             return measurement.weight.value;
         case MetricType::BMI:
             return measurement.bmi;
         case MetricType::BodyFat:
+            if (m_use_v2 && measurement.body_fat_v2.value > 0.0) {
+                return measurement.body_fat_v2.value;
+            }
             return measurement.body_fat.value;
         case MetricType::Water:
+            if (m_use_v2 && measurement.water_v2.value > 0.0) {
+                return measurement.water_v2.value;
+            }
             return measurement.water.value;
         case MetricType::Muscle:
+            if (m_use_v2 && measurement.muscle_mass_v2.value > 0.0) {
+                return measurement.muscle_mass_v2.value;
+            }
             return measurement.muscle_mass.value;
         default:
             return 0.0;
@@ -328,7 +351,7 @@ void TrendGraph::on_click(int /*n_press*/, double x_input, double y_input) {
         const auto& measurement = m_data[*closest];
         std::string_view unit;
         if (m_metric == MetricType::Weight) {
-            unit = " kg";
+            unit = (m_units == UnitSystem::Imperial) ? " lbs" : " kg";
         } else if (m_metric == MetricType::BMI) {
             unit = "";
         } else {

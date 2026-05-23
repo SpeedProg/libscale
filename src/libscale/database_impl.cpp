@@ -30,6 +30,7 @@ auto make_sqlite_storage(const std::string& path) {
             sqlite_orm::make_column("gender", &UserProfile::gender),
             sqlite_orm::make_column("activity_level", &UserProfile::activity_level),
             sqlite_orm::make_column("birthday", &UserProfile::birthday),
+            sqlite_orm::make_column("waist_circumference_cm", &UserProfile::waist_circumference),
             sqlite_orm::make_column("slot_id", &UserProfile::slot_id),
             sqlite_orm::make_column("device_user_id", &UserProfile::device_user_id)),
         sqlite_orm::make_table(
@@ -45,6 +46,13 @@ auto make_sqlite_storage(const std::string& path) {
             sqlite_orm::make_column("bmi", &Measurement::bmi),
             sqlite_orm::make_column("age_at_measurement", &Measurement::age),
             sqlite_orm::make_column("energy_kcal", &Measurement::energy),
+            sqlite_orm::make_column("waist_circumference_cm", &Measurement::waist_circumference),
+            sqlite_orm::make_column("body_fat_v2_pct", &Measurement::body_fat_v2),
+            sqlite_orm::make_column("water_v2_pct", &Measurement::water_v2),
+            sqlite_orm::make_column("muscle_mass_v2_pct", &Measurement::muscle_mass_v2),
+            sqlite_orm::make_column("energy_v2_kcal", &Measurement::energy_v2),
+            sqlite_orm::make_column("ecw_v2_pct", &Measurement::ecw_v2),
+            sqlite_orm::make_column("rfm", &Measurement::rfm),
             sqlite_orm::make_column("formula_version", &Measurement::formula_version),
             sqlite_orm::unique(&Measurement::user_id, &Measurement::date)),
         sqlite_orm::make_table(

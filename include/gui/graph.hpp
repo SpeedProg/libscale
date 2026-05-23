@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "libscale/types.hpp"
+#include "gui/settings.hpp"
 
 namespace libscale {
 
@@ -64,6 +65,18 @@ class TrendGraph : public Gtk::DrawingArea {
      */
     void set_compact_mode(bool compact);
 
+    /**
+     * @brief Sets the physical unit system display preference.
+     * @param units Metric or Imperial preference.
+     */
+    void set_unit_system(UnitSystem units);
+
+    /**
+     * @brief Toggles whether to use Clinical V2 calculations for body fat, water, and muscle mass.
+     * @param use_v2 True to render V2 metrics on the graph.
+     */
+    void set_use_v2(bool use_v2);
+
    protected:
     /**
      * @brief Custom draw callback executed by GTK4 to render the trend line, axes, grid, and dots.
@@ -81,7 +94,9 @@ class TrendGraph : public Gtk::DrawingArea {
 
     std::vector<Measurement> m_data;
     MetricType m_metric = MetricType::Weight;
+    UnitSystem m_units = UnitSystem::Metric;
     bool m_compact = false;
+    bool m_use_v2 = false;
 
     Glib::RefPtr<Gtk::GestureClick> m_click_gesture;
     Gtk::Popover m_popover;

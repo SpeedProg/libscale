@@ -1,9 +1,9 @@
+#include <chrono>
 #include <exception>
 #include <filesystem>
 #include <iostream>
 #include <string>
 
-#include <chrono>
 #include "libscale/database_impl.hpp"
 #include "libscale/device.hpp"
 #include "libscale/manager.hpp"
@@ -49,7 +49,9 @@ auto run_smoke_test() -> void {
     user.height = units::Cm{default_height};
     user.gender = Gender::Female;
     user.activity_level = ActivityLevel::HomeGarden;
-    user.birthday = std::chrono::year_month_day{std::chrono::year(default_year), std::chrono::month(default_month), std::chrono::day(default_day)};
+    user.birthday = std::chrono::year_month_day{std::chrono::year(default_year),
+                                                std::chrono::month(default_month),
+                                                std::chrono::day(default_day)};
     database.add_user(user);
     const auto users = manager.get_users();
     if (users.empty() || users[0].name != "Test User") {

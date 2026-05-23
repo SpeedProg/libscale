@@ -96,6 +96,11 @@ class BioImpedanceCalculatorV1 : public IBioImpedanceCalculator {
     static auto calculate_water_content(const CalculationContext& ctx) -> units::Percent;
     static auto calculate_energy_needs(const CalculationContext& ctx, units::Percent muscle_mass) -> units::Kcal;
 
+    static auto calculate_body_fat_v2(const CalculationContext& ctx, double& rfm_out) -> units::Percent;
+    static auto calculate_water_content_v2(const CalculationContext& ctx, units::Percent& ecw_out) -> units::Percent;
+    static auto calculate_muscle_mass_v2(const CalculationContext& ctx) -> units::Percent;
+    static auto calculate_energy_needs_v2(const CalculationContext& ctx) -> units::Kcal;
+
     // Architectural Refactoring: Helper methods to consolidate branching logic
     [[nodiscard]] static auto get_activity_multiplier(ActivityLevel activity_level) -> double;
     [[nodiscard]] static auto get_fat_adjustment(Gender gender, ActivityLevel activity_level) -> double;

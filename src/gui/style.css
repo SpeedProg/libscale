@@ -123,3 +123,13 @@ listitem:hover {
     font-weight: 700;
     color: #fff;
 }
+
+/* Settings Tab Styling */
+.settings-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 30px;
+    min-width: 400px;
+    margin: 20px auto;
+}

@@ -1,5 +1,6 @@
 #include "libscale/manager.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -32,6 +33,35 @@ auto HealthManager::get_users() const -> std::vector<UserProfile> {
 
 void HealthManager::update_user(const UserProfile& user) {
     m_database.update_user(user);
+}
+
+void HealthManager::recalculate_measurements(int user_id) {
+    auto users = m_database.get_users();
+    auto user_iterator = std::ranges::find_if(
+        users, [user_id](const UserProfile& user_profile) { return user_profile.id == user_id; });
+    if (user_iterator == users.end()) {
+        return;
+    }
+    const auto& user = *user_iterator;
+
+    auto measurements = m_database.get_measurements(user_id);
+    for (const auto& measurement : measurements) {
+        auto raw_opt = m_database.get_scale_raw_data(measurement.id);
+        if (raw_opt) {
+            RawMeasurement raw;
+            raw.weight_raw = raw_opt->weight_raw;
+            raw.imp5k = raw_opt->imp5k;
+            raw.imp50k = raw_opt->imp50k;
+
+            auto new_meas_opt = m_calculator->calculate(raw, user);
+            if (new_meas_opt) {
+                auto new_meas = *new_meas_opt;
+                new_meas.id = measurement.id;
+                new_meas.date = measurement.date;
+                m_database.add_measurement(new_meas);
+            }
+        }
+    }
 }
 
 void HealthManager::delete_user(int user_id) {

@@ -8,6 +8,12 @@ namespace libscale {
 static constexpr int default_window_width = 1000;
 /// Default window height in pixels.
 static constexpr int default_window_height = 700;
+/// Conversion factor from Kilograms to Pounds.
+static constexpr double kg_to_lbs_factor = 2.20462;
+/// Conversion factor from Centimeters to Inches.
+static constexpr double cm_per_inch = 2.54;
+/// Number of inches in a foot.
+static constexpr int inches_per_foot = 12;
 
 /**
  * @brief Available physical unit systems for display formatting.
@@ -20,7 +26,7 @@ enum class UnitSystem : uint8_t {
 };
 
 /**
- * @brief Abstract settings manager interface managing application state persistence (dark mode, window sizes).
+ * @brief Abstract settings manager interface managing application state persistence (unit system, window sizes).
  */
 class ISettingsManager {
    public:
@@ -49,17 +55,7 @@ class ISettingsManager {
      */
     virtual void save() = 0;
 
-    /**
-     * @brief Checks if dark theme mode is enabled.
-     * @return True if dark mode is active, false otherwise.
-     */
-    [[nodiscard]] virtual auto get_is_dark_mode() const -> bool = 0;
 
-    /**
-     * @brief Toggles dark theme mode.
-     * @param dark True to enable dark mode, false to disable.
-     */
-    virtual void set_is_dark_mode(bool dark) = 0;
 
     /**
      * @brief Retrieves the active physical unit system display preference.
@@ -145,8 +141,7 @@ class JsonSettingsManager : public ISettingsManager {
     void load(const std::filesystem::path& config_path) override;
     void save() override;
 
-    [[nodiscard]] auto get_is_dark_mode() const -> bool override { return m_dark_mode; }
-    void set_is_dark_mode(bool dark) override { m_dark_mode = dark; }
+
 
     [[nodiscard]] auto get_unit_system() const -> UnitSystem override { return m_units; }
     void set_unit_system(UnitSystem units) override { m_units = units; }
@@ -165,7 +160,6 @@ class JsonSettingsManager : public ISettingsManager {
 
    private:
     std::filesystem::path m_path;
-    bool m_dark_mode = true;
     UnitSystem m_units = UnitSystem::Metric;
     int m_last_user_id = 0;
     int m_window_width = default_window_width;

@@ -153,3 +153,45 @@ TEST(DatabaseTest,
         std::filesystem::remove(db_path);
     }
 }
+
+TEST(CalculatorTest, BioImpedanceV2) {
+    static constexpr int test_height = 180;
+    static constexpr int test_activity = 3;
+    static constexpr int test_year = 2023;
+    static constexpr int test_month = 10;
+    static constexpr int test_day = 1;
+    static constexpr int test_imp50k = 450;
+    static constexpr int test_imp5k = 500;
+    static constexpr int test_weight_raw = 855;
+
+    UserProfile user;
+    user.height = units::Cm{test_height};
+    user.gender = Gender::Male;
+    user.activity_level = static_cast<ActivityLevel>(test_activity);
+    user.birthday = std::chrono::year(birth_year) / 1 / 1;
+    static constexpr int test_waist_cm = 90;
+    user.waist_circumference =
+        units::Cm{test_waist_cm};  // Set waist circumference for V2 calculations!
+
+    RawMeasurement raw{};
+    raw.year = test_year;
+    raw.month = test_month;
+    raw.day = test_day;
+    raw.imp50k = test_imp50k;
+    raw.imp5k = test_imp5k;
+    raw.weight_raw = test_weight_raw;
+
+    const BioImpedanceCalculatorV1 calculator;
+    const auto measurement = calculator.calculate(raw, user);
+
+    ASSERT_TRUE(measurement.has_value());
+    if (measurement) {
+        EXPECT_NEAR(measurement->weight.value, expected_weight, weight_tolerance);
+        EXPECT_GT(measurement->body_fat_v2.value, 0.0);
+        EXPECT_GT(measurement->water_v2.value, 0.0);
+        EXPECT_GT(measurement->muscle_mass_v2.value, 0.0);
+        EXPECT_GT(measurement->energy_v2.value, 0);
+        EXPECT_GT(measurement->ecw_v2.value, 0.0);
+        EXPECT_GT(measurement->rfm, 0.0);
+    }
+}

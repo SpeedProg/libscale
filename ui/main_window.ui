@@ -142,6 +142,17 @@
                                 <style><class name="range-date-label"/></style>
                               </object>
                             </child>
+                            <child>
+                              <object class="GtkSeparator">
+                                <property name="orientation">vertical</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="formula_v2_toggle">
+                                <property name="label">Clinical V2</property>
+                                <property name="active">false</property>
+                              </object>
+                            </child>
                           </object>
                         </child>
                         <child>
@@ -445,6 +456,42 @@
                                     </layout>
                                   </object>
                                 </child>
+                                <!-- Waist Circumference Row -->
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="label">Waist Circumference:</property>
+                                    <property name="xalign">0</property>
+                                    <style>
+                                      <class name="profile-label"/>
+                                    </style>
+                                    <layout>
+                                      <property name="column">0</property>
+                                      <property name="row">7</property>
+                                    </layout>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel" id="profile_waist">
+                                    <property name="label">--</property>
+                                    <property name="xalign">0</property>
+                                    <style>
+                                      <class name="profile-value"/>
+                                    </style>
+                                    <layout>
+                                      <property name="column">1</property>
+                                      <property name="row">7</property>
+                                    </layout>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkButton" id="btn_edit_waist">
+                                    <property name="label">Edit</property>
+                                    <layout>
+                                      <property name="column">2</property>
+                                      <property name="row">7</property>
+                                    </layout>
+                                  </object>
+                                </child>
                               </object>
                             </child>
                           </object>
@@ -460,9 +507,46 @@
                     <property name="child">
                       <object class="GtkBox">
                         <property name="orientation">vertical</property>
+                        <property name="spacing">10</property>
+                        <property name="margin-top">20</property>
+                        <property name="margin-bottom">20</property>
+                        <property name="margin-start">20</property>
+                        <property name="margin-end">20</property>
                         <child>
-                          <object class="GtkCheckButton" id="dark_mode_check">
-                            <property name="label">Dark Mode</property>
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <property name="halign">center</property>
+                            <property name="valign">start</property>
+                            <style>
+                              <class name="settings-card"/>
+                            </style>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="label">Display Preferences</property>
+                                <property name="xalign">0</property>
+                                <style>
+                                  <class name="profile-title"/>
+                                </style>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkBox">
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">8</property>
+                                <child>
+                                  <object class="GtkCheckButton" id="unit_metric_radio">
+                                    <property name="label">Metric Units (kg, cm)</property>
+                                    <property name="active">true</property>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkCheckButton" id="unit_imperial_radio">
+                                    <property name="label">Imperial Units (lbs, ft/in)</property>
+                                    <property name="group">unit_metric_radio</property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
                           </object>
                         </child>
                       </object>

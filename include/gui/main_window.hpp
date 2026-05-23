@@ -8,6 +8,7 @@
 #include <gtkmm/listitem.h>
 #include <gtkmm/box.h>
 #include <gtkmm/scale.h>
+#include <gtkmm/checkbutton.h>
 #include <giomm/liststore.h>
 #include <glibmm/dispatcher.h>
 #include <optional>
@@ -119,7 +120,13 @@ class MainWindow : public Gtk::ApplicationWindow {
 
     void setup_history_list();
     static void on_setup_list_item(const Glib::RefPtr<Gtk::ListItem>& list_item);
-    static void on_bind_list_item(const Glib::RefPtr<Gtk::ListItem>& list_item);
+    void on_bind_list_item(const Glib::RefPtr<Gtk::ListItem>& list_item);
+
+    void check_missing_waist_circumferences();
+    void prompt_next_missing_waist();
+    void prompt_recalculate_history(const UserProfile& user, const std::function<void()>& on_finished);
+    void prompt_waist_change(const UserProfile& user);
+    void recalculate_user_history(int user_id);
 
     HealthManager& m_manager;
     ISettingsManager& m_settings;
@@ -136,6 +143,9 @@ class MainWindow : public Gtk::ApplicationWindow {
     Gtk::ListBox* m_user_list = nullptr;
     Gtk::Box* m_graph_container = nullptr;
 
+    Gtk::CheckButton* m_unit_metric_radio = nullptr;
+    Gtk::CheckButton* m_unit_imperial_radio = nullptr;
+
     // Profile page fields
     Gtk::Label* m_profile_name = nullptr;
     Gtk::Label* m_profile_height = nullptr;
@@ -144,6 +154,9 @@ class MainWindow : public Gtk::ApplicationWindow {
     Gtk::Label* m_profile_birthday = nullptr;
     Gtk::Label* m_profile_slot = nullptr;
     Gtk::Label* m_profile_device_id = nullptr;
+    Gtk::Label* m_profile_waist = nullptr;
+    Gtk::Button* m_btn_edit_waist = nullptr;
+    std::vector<UserProfile> m_users_needing_waist;
 
     // Metric Cards
     Gtk::Button* m_card_weight = nullptr;
@@ -193,6 +206,7 @@ class MainWindow : public Gtk::ApplicationWindow {
     Gtk::Scale* m_range_end_slider = nullptr;
     Gtk::Label* m_range_start_label = nullptr;
     Gtk::Label* m_range_end_label = nullptr;
+    Gtk::CheckButton* m_formula_v2_toggle = nullptr;
     
     int m_active_preset = 0;
     bool m_updating_from_model = false;
