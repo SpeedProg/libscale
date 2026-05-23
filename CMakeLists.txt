@@ -4,9 +4,16 @@ project(ComfortSelectDashboard VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include(GNUInstallDirs)
+
+# Windows: Omit non-essential API headers (like legacy Winsock 1) to prevent conflicts with Winsock 2
 if(WIN32)
+    if(MSVC)
+        message(FATAL_ERROR "MSVC is strictly unsupported for Windows builds due to GTKmm C++ ABI incompatibility. You are currently using the MSVC compiler (cl.exe). Please use the MSYS2 UCRT64 (or MINGW64) GCC compiler. Ensure your Conan profile uses GCC and your CMake generator is set to 'Ninja' or 'Unix Makefiles'. See README.md and DEVELOPER.md for instructions.")
+    endif()
     add_compile_definitions(WIN32_LEAN_AND_MEAN)
 endif()
+
 
 # Performance: Link Time Optimization
 include(CheckIPOSupported)
@@ -35,14 +42,10 @@ find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
 find_program(RUN_CLANG_TIDY_EXE NAMES "run-clang-tidy")
 find_program(CLANG_FORMAT_EXE NAMES "clang-format")
 
-if(CLANG_TIDY_EXE)
-    set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-quiet")
-endif()
 
 file(GLOB_RECURSE ALL_SOURCE_FILES 
     src/*.cpp 
-    tests/*.cpp 
-    fuzzing/*.cpp
+    tests/*.cpp
 )
 
 if(CLANG_FORMAT_EXE)
@@ -52,7 +55,7 @@ if(CLANG_FORMAT_EXE)
     )
 endif()
 
-if(RUN_CLANG_TIDY_EXE)
+if(RUN_CLANG_TIDY_EXE AND NOT WIN32)
     add_custom_target(lint
         COMMAND ${RUN_CLANG_TIDY_EXE} -fix -quiet -p ${CMAKE_BINARY_DIR} ${ALL_SOURCE_FILES}
         COMMENT "Running clang-tidy static analysis in parallel..."
@@ -94,7 +97,7 @@ endif()
 
 # Find GTKmm 4.0 via PkgConfig
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GTKMM REQUIRED gtkmm-4.0)
+pkg_check_modules(GTKMM REQUIRED gtkmm-4.0 fontconfig)
 
 # Localization support
 find_package(Gettext)
@@ -111,3 +114,11 @@ add_subdirectory(src/gui)
 # Build Tests
 enable_testing()
 add_subdirectory(tests)
+
+# Install Desktop Launcher
+install(FILES comfort-select-dashboard.desktop
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
+
+# Install Scalable SVG Icon
+install(FILES resources/comfort-select-dashboard.svg
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)
