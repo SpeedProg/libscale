@@ -73,10 +73,10 @@ auto find_resource(const std::filesystem::path& rel_path) -> std::string {
         "..",
         "resources",
         "../resources",
-        "../share/comfort_select_dashboard",
-        "share/comfort_select_dashboard",
-        "/usr/share/comfort_select_dashboard",
-        "/usr/local/share/comfort_select_dashboard",
+        "../share/de.speedprog.comfort-select-dashboard",
+        "share/de.speedprog.comfort-select-dashboard",
+        "/usr/share/de.speedprog.comfort-select-dashboard",
+        "/usr/local/share/de.speedprog.comfort-select-dashboard",
         "src/gui",
         "../src/gui",
         "../../src/gui",
@@ -287,7 +287,7 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     }
 
     set_default_size(m_settings.get_window_width(), m_settings.get_window_height());
-    set_icon_name("comfort-select-dashboard");
+    set_icon_name("de.speedprog.comfort-select-dashboard");
     if (m_settings.get_is_maximized()) {
         maximize();
     }
