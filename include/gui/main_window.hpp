@@ -13,6 +13,9 @@
 #include <optional>
 #include <utility>
 #include <vector>
+#include <memory>
+#include <gtkmm/filechooserdialog.h>
+#include <gtkmm/messagedialog.h>
 
 #include "libscale/manager.hpp"
 #include "gui/graph.hpp"
@@ -105,6 +108,10 @@ class MainWindow : public Gtk::ApplicationWindow {
     void load_user_data(int user_id);
     void on_device_arrived();
     void on_metric_clicked(MetricType type);
+    void on_export_csv_clicked();
+    void on_export_json_clicked();
+    void show_info_dialog(const std::string& title, const std::string& message) /* NOLINT(bugprone-easily-swappable-parameters) */;
+    void show_error_dialog(const std::string& title, const std::string& message) /* NOLINT(bugprone-easily-swappable-parameters) */;
     
     // ViewModel integration
     void on_view_model_changed();
@@ -167,6 +174,12 @@ class MainWindow : public Gtk::ApplicationWindow {
     // History List
     Gtk::ListView* m_history_list = nullptr;
     Glib::RefPtr<Gio::ListStore<MeasurementObject>> m_history_model;
+    Gtk::Button* m_export_csv_button = nullptr;
+    Gtk::Button* m_export_json_button = nullptr;
+    std::unique_ptr<Gtk::FileChooserDialog> m_csv_export_dialog;
+    std::unique_ptr<Gtk::FileChooserDialog> m_json_export_dialog;
+    std::unique_ptr<Gtk::MessageDialog> m_info_dialog;
+    std::unique_ptr<Gtk::MessageDialog> m_error_dialog;
 
     std::vector<UserProfile> m_users;
     std::optional<UserProfile> m_current_user;

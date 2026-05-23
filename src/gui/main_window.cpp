@@ -10,6 +10,9 @@
 #include <gtkmm/builder.h>
 #include <gtkmm/button.h>
 #include <gtkmm/cssprovider.h>
+#include <gtkmm/dialog.h>
+#include <gtkmm/enums.h>
+#include <gtkmm/filechooser.h>
 #include <gtkmm/label.h>
 #include <gtkmm/listbox.h>
 #include <gtkmm/listboxrow.h>
@@ -20,6 +23,9 @@
 #include <gtkmm/scale.h>
 #include <gtkmm/signallistitemfactory.h>
 #include <gtkmm/stylecontext.h>
+#include <gtkmm/filechooserdialog.h>
+#include <gtkmm/filefilter.h>
+#include <gtkmm/messagedialog.h>
 #include <sigc++/functors/mem_fun.h>
 
 #include <algorithm>
@@ -42,6 +48,8 @@
 #include "gui/settings.hpp"
 #include "libscale/manager.hpp"
 #include "libscale/worker.hpp"
+#include "libscale/exporter.hpp"
+#include <fstream>
 
 namespace libscale {
 
@@ -180,6 +188,16 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
         m_active_preset = 0;
         m_view_model.set_range_preset(0);
     });
+
+    m_export_csv_button = builder->get_widget<Gtk::Button>("export_csv_button");
+    m_export_json_button = builder->get_widget<Gtk::Button>("export_json_button");
+
+    if (m_export_csv_button != nullptr) {
+        m_export_csv_button->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_export_csv_clicked));
+    }
+    if (m_export_json_button != nullptr) {
+        m_export_json_button->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_export_json_clicked));
+    }
 
     auto on_slider_changed = [this]() {
         if (!m_updating_from_model) {
@@ -489,6 +507,128 @@ auto MainWindow::find_current_user_iterator() const -> std::vector<UserProfile>:
     return std::ranges::find_if(m_users, [this](const UserProfile& user_profile) {
         return user_profile.id == m_current_user->id;
     });
+}
+
+void MainWindow::on_export_csv_clicked() {
+    const auto& data = m_view_model.get_filtered_data();
+    if (data.empty()) {
+        show_info_dialog("No Data to Export", "There are no measurements in the current view to export.");
+        return;
+    }
+
+    if (!m_csv_export_dialog) {
+        m_csv_export_dialog = std::make_unique<Gtk::FileChooserDialog>(
+            *this, "Export CSV File", Gtk::FileChooser::Action::SAVE);
+        m_csv_export_dialog->set_modal(true);
+        m_csv_export_dialog->add_button("_Cancel", Gtk::ResponseType::CANCEL);
+        m_csv_export_dialog->add_button("_Save", Gtk::ResponseType::ACCEPT);
+
+        auto filter_csv = Gtk::FileFilter::create();
+        filter_csv->set_name("CSV files (*.csv)");
+        filter_csv->add_pattern("*.csv");
+        m_csv_export_dialog->add_filter(filter_csv);
+        m_csv_export_dialog->set_current_name("export.csv");
+
+        m_csv_export_dialog->signal_response().connect([this](int response_id) {
+            if (response_id == Gtk::ResponseType::ACCEPT) {
+                auto file = m_csv_export_dialog->get_file();
+                if (file) {
+                    std::string path = file->get_path();
+                    if (!path.ends_with(".csv")) {
+                        path += ".csv";
+                    }
+                    try {
+                        std::ofstream out(path);
+                        if (!out) {
+                            throw std::runtime_error("Could not open file for writing.");
+                        }
+                        const auto& data = m_view_model.get_filtered_data();
+                        out << DataExporter::to_csv(data);
+                        m_status_label->set_text("Exported CSV to " + path);
+                    } catch (const std::exception& e) {
+                        show_error_dialog("Export Failed", std::format("Failed to save CSV file:\n{}", e.what()));
+                    }
+                }
+            }
+            m_csv_export_dialog->hide();
+        });
+    }
+    m_csv_export_dialog->show();
+}
+
+void MainWindow::on_export_json_clicked() {
+    const auto& data = m_view_model.get_filtered_data();
+    if (data.empty()) {
+        show_info_dialog("No Data to Export", "There are no measurements in the current view to export.");
+        return;
+    }
+
+    if (!m_json_export_dialog) {
+        m_json_export_dialog = std::make_unique<Gtk::FileChooserDialog>(
+            *this, "Export JSON File", Gtk::FileChooser::Action::SAVE);
+        m_json_export_dialog->set_modal(true);
+        m_json_export_dialog->add_button("_Cancel", Gtk::ResponseType::CANCEL);
+        m_json_export_dialog->add_button("_Save", Gtk::ResponseType::ACCEPT);
+
+        auto filter_json = Gtk::FileFilter::create();
+        filter_json->set_name("JSON files (*.json)");
+        filter_json->add_pattern("*.json");
+        m_json_export_dialog->add_filter(filter_json);
+        m_json_export_dialog->set_current_name("export.json");
+
+        m_json_export_dialog->signal_response().connect([this](int response_id) {
+            if (response_id == Gtk::ResponseType::ACCEPT) {
+                auto file = m_json_export_dialog->get_file();
+                if (file) {
+                    std::string path = file->get_path();
+                    if (!path.ends_with(".json")) {
+                        path += ".json";
+                    }
+                    try {
+                        std::ofstream out(path);
+                        if (!out) {
+                            throw std::runtime_error("Could not open file for writing.");
+                        }
+                        const auto& data = m_view_model.get_filtered_data();
+                        out << DataExporter::to_json(data);
+                        m_status_label->set_text("Exported JSON to " + path);
+                    } catch (const std::exception& e) {
+                        show_error_dialog("Export Failed", std::format("Failed to save JSON file:\n{}", e.what()));
+                    }
+                }
+            }
+            m_json_export_dialog->hide();
+        });
+    }
+    m_json_export_dialog->show();
+}
+
+void MainWindow::show_info_dialog(const std::string& title, const std::string& message) { // NOLINT(bugprone-easily-swappable-parameters)
+    if (!m_info_dialog) {
+        m_info_dialog = std::make_unique<Gtk::MessageDialog>(
+            *this, title, false, Gtk::MessageType::INFO, Gtk::ButtonsType::OK, true);
+        m_info_dialog->signal_response().connect([this](int) {
+            m_info_dialog->hide();
+        });
+    } else {
+        m_info_dialog->set_title(title);
+    }
+    m_info_dialog->set_secondary_text(message);
+    m_info_dialog->show();
+}
+
+void MainWindow::show_error_dialog(const std::string& title, const std::string& message) { // NOLINT(bugprone-easily-swappable-parameters)
+    if (!m_error_dialog) {
+        m_error_dialog = std::make_unique<Gtk::MessageDialog>(
+            *this, title, false, Gtk::MessageType::ERROR, Gtk::ButtonsType::OK, true);
+        m_error_dialog->signal_response().connect([this](int) {
+            m_error_dialog->hide();
+        });
+    } else {
+        m_error_dialog->set_title(title);
+    }
+    m_error_dialog->set_secondary_text(message);
+    m_error_dialog->show();
 }
 
 }  // namespace libscale
