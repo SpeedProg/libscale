@@ -11,7 +11,7 @@ if(WIN32)
     if(MSVC)
         message(FATAL_ERROR "MSVC is strictly unsupported for Windows builds due to GTKmm C++ ABI incompatibility. You are currently using the MSVC compiler (cl.exe). Please use the MSYS2 UCRT64 (or MINGW64) GCC compiler. Ensure your Conan profile uses GCC and your CMake generator is set to 'Ninja' or 'Unix Makefiles'. See README.md and DEVELOPER.md for instructions.")
     endif()
-    add_compile_definitions(WIN32_LEAN_AND_MEAN)
+    add_compile_definitions(WIN32_LEAN_AND_MEAN NOMINMAX)
 endif()
 
 
@@ -48,10 +48,16 @@ file(GLOB_RECURSE ALL_SOURCE_FILES
     tests/*.cpp
 )
 
+file(GLOB_RECURSE ALL_HEADER_FILES
+    src/*.hpp
+    include/*.hpp
+    tests/*.hpp
+)
+
 if(CLANG_FORMAT_EXE)
     add_custom_target(format
-        COMMAND ${CLANG_FORMAT_EXE} -i ${ALL_SOURCE_FILES}
-        COMMENT "Applying clang-format to all source files..."
+        COMMAND ${CLANG_FORMAT_EXE} -i ${ALL_SOURCE_FILES} ${ALL_HEADER_FILES}
+        COMMENT "Applying clang-format to all source and header files..."
     )
 endif()
 
@@ -116,9 +122,13 @@ enable_testing()
 add_subdirectory(tests)
 
 # Install Desktop Launcher
-install(FILES comfort-select-dashboard.desktop
+install(FILES de.speedprog.comfort-select-dashboard.desktop
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
 
 # Install Scalable SVG Icon
-install(FILES resources/comfort-select-dashboard.svg
+install(FILES resources/de.speedprog.comfort-select-dashboard.svg
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)
+
+# Install AppStream Metainfo
+install(FILES resources/de.speedprog.comfort-select-dashboard.metainfo.xml
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo)

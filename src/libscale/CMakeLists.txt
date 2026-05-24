@@ -23,11 +23,10 @@ find_package(nlohmann_json REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SIGCPP REQUIRED sigc++-3.0)
 
-if(WIN32)
+find_package(libusb QUIET)
+if(NOT TARGET libusb::libusb)
     pkg_check_modules(LIBUSB REQUIRED IMPORTED_TARGET libusb-1.0)
     add_library(libusb::libusb ALIAS PkgConfig::LIBUSB)
-else()
-    find_package(libusb REQUIRED)
 endif()
 
 target_link_libraries(libscale PUBLIC 

@@ -37,7 +37,7 @@ install(TARGETS comfort_select_dashboard
 
 # Install runtime UI and CSS styling resources
 install(FILES ${CMAKE_SOURCE_DIR}/ui/main_window.ui
-        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/comfort_select_dashboard)
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/de.speedprog.comfort-select-dashboard)
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/style.css
-        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/comfort_select_dashboard)
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/de.speedprog.comfort-select-dashboard)
