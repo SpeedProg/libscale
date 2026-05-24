@@ -1,5 +1,12 @@
 #pragma once
 #include <libusb.h>
+
+#ifdef ERROR
+// windows.h (included by libusb.h on Windows) defines ERROR as 0, which conflicts with
+// Gtk::MessageType::ERROR.
+#undef ERROR
+#endif
+
 #include <sigc++/sigc++.h>
 
 #include <span>
