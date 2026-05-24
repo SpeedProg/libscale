@@ -8,6 +8,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -309,10 +310,10 @@ class MockScaleDevice : public IScaleDevice {
     auto signal_device_arrived() -> sigc::signal<void()> override {
         return device_arrived_signal;
     }
-    auto get_device_key() const -> std::string override {
+    auto get_device_key() const -> std::string_view override {
         return "usb:222d:0001";
     }
-    auto get_device_name() const -> std::string override {
+    auto get_device_name() const -> std::string_view override {
         return "Mock Soehnle Scale";
     }
     auto get_impedance_pathway() const -> ImpedancePathway override {

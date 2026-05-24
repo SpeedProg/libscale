@@ -6,6 +6,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -30,8 +31,8 @@ HealthManager::~HealthManager() = default;
 
 auto HealthManager::get_users() const -> std::vector<UserProfile> {
     auto users = m_database.get_users();
-    const std::string dev_key = m_device.get_device_key();
-    auto dev_opt = m_database.get_device_by_key(dev_key);
+    std::string_view const dev_key = m_device.get_device_key();
+    auto dev_opt = m_database.get_device_by_key(std::string{dev_key});
 
     if (dev_opt) {
         for (auto& user : users) {
@@ -119,13 +120,13 @@ auto HealthManager::get_measurements_range(int user_id, std::chrono::year_month_
 }
 
 void HealthManager::start_sync(std::function<void(SyncResult)> callback) {
-    const std::string dev_key = m_device.get_device_key();
-    auto dev_opt = m_database.get_device_by_key(dev_key);
+    std::string_view const dev_key = m_device.get_device_key();
+    auto dev_opt = m_database.get_device_by_key(std::string{dev_key});
     int device_id = 0;
     if (!dev_opt) {
         Device new_dev;
         new_dev.name = m_device.get_device_name();
-        new_dev.device_key = dev_key;
+        new_dev.device_key = std::string{dev_key};
         new_dev.pathway = m_device.get_impedance_pathway();
         device_id = m_database.add_device(new_dev);
     } else {
@@ -200,13 +201,13 @@ void HealthManager::process_sync_results(int device_id, const SyncResult& result
 
 void HealthManager::associate_scale_user(const UserProfile& scale_user, std::optional<int> user_id,
                                          const SyncResult& result) {
-    const std::string dev_key = m_device.get_device_key();
-    auto dev_opt = m_database.get_device_by_key(dev_key);
+    std::string_view const dev_key = m_device.get_device_key();
+    auto dev_opt = m_database.get_device_by_key(std::string{dev_key});
     const int device_id = [&]() {
         if (!dev_opt) {
             Device new_dev;
             new_dev.name = m_device.get_device_name();
-            new_dev.device_key = dev_key;
+            new_dev.device_key = std::string{dev_key};
             new_dev.pathway = m_device.get_impedance_pathway();
             return m_database.add_device(new_dev);
         }

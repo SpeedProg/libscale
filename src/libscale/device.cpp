@@ -16,6 +16,7 @@
 #include <stdexcept>
 #include <stop_token>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -308,11 +309,11 @@ auto UsbScaleDevice::parse_measurements(std::span<const uint8_t> data)
     return measurements;
 }
 
-auto UsbScaleDevice::get_device_key() const -> std::string {
+auto UsbScaleDevice::get_device_key() const -> std::string_view {
     return "usb:222d:0001";
 }
 
-auto UsbScaleDevice::get_device_name() const -> std::string {
+auto UsbScaleDevice::get_device_name() const -> std::string_view {
     return "Soehnle Comfort Select";
 }
 

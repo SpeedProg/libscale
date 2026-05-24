@@ -79,13 +79,13 @@ class IScaleDevice {
      * @brief Gets the hardware-specific driver key.
      * @return The hardware key string.
      */
-    [[nodiscard]] virtual auto get_device_key() const -> std::string = 0;
+    [[nodiscard]] virtual auto get_device_key() const -> std::string_view = 0;
 
     /**
-     * @brief Gets the human-readable display name of the device.
+     * @brief Gets the human-readable name of the device.
      * @return The device name.
      */
-    [[nodiscard]] virtual auto get_device_name() const -> std::string = 0;
+    [[nodiscard]] virtual auto get_device_name() const -> std::string_view = 0;
 
     /**
      * @brief Gets the biometric impedance pathway used by the device.
@@ -170,13 +170,13 @@ class UsbScaleDevice final : public IScaleDevice {
      * @brief Gets the hardware-specific driver key.
      * @return The hardware key string.
      */
-    [[nodiscard]] auto get_device_key() const -> std::string final;
+    [[nodiscard]] auto get_device_key() const -> std::string_view final;
 
     /**
-     * @brief Gets the human-readable display name of the device.
+     * @brief Gets the human-readable display and name of the device.
      * @return The device name.
      */
-    [[nodiscard]] auto get_device_name() const -> std::string final;
+    [[nodiscard]] auto get_device_name() const -> std::string_view final;
 
     /**
      * @brief Gets the biometric impedance pathway used by the device.
