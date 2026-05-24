@@ -77,6 +77,9 @@ void HealthManager::recalculate_measurements(int user_id) {
         auto raw_opt = m_database.get_scale_raw_data(measurement.id);
         if (raw_opt) {
             RawMeasurement raw;
+            raw.year = static_cast<int>(measurement.date.year());
+            raw.month = static_cast<unsigned int>(measurement.date.month());
+            raw.day = static_cast<unsigned int>(measurement.date.day());
             raw.weight_raw = raw_opt->weight_raw;
             raw.imp5k = raw_opt->imp5k;
             raw.imp50k = raw_opt->imp50k;
@@ -233,6 +236,28 @@ void HealthManager::associate_scale_user(const UserProfile& scale_user, std::opt
 
 void HealthManager::stop_sync() {
     m_worker->stop();
+}
+
+auto HealthManager::get_devices() const -> std::vector<Device> {
+    return m_database.get_devices();
+}
+
+void HealthManager::update_device(const Device& device) {
+    m_database.update_device(device);
+}
+
+void HealthManager::recalculate_device_measurements(int device_id) {
+    auto users = get_users();
+    for (const auto& user : users) {
+        auto measurements = m_database.get_measurements(user.id);
+        bool const has_device_measurement =
+            std::ranges::any_of(measurements, [device_id](const Measurement& measurement) {
+                return measurement.device_id && *measurement.device_id == device_id;
+            });
+        if (has_device_measurement) {
+            recalculate_measurements(user.id);
+        }
+    }
 }
 
 }  // namespace libscale

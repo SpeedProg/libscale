@@ -121,6 +121,12 @@ class IDatabaseManager {
     virtual auto add_device(const Device& device) -> int = 0;
 
     /**
+     * @brief Updates an existing scale device record in the database.
+     * @param device The device struct with updated fields matching an existing ID.
+     */
+    virtual void update_device(const Device& device) = 0;
+
+    /**
      * @brief Fetches a scale device by its database ID.
      * @param device_id The database ID of the device.
      * @return The device record if found, std::nullopt otherwise.

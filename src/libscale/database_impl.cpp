@@ -240,6 +240,11 @@ auto SqliteDatabaseManager::add_device(const Device& device) -> int {
     return get_storage(m_impl->storage.get()).insert(device);
 }
 
+void SqliteDatabaseManager::update_device(const Device& device) {
+    std::unique_lock const lock(m_mutex);
+    get_storage(m_impl->storage.get()).update(device);
+}
+
 auto SqliteDatabaseManager::get_device(int device_id) const -> std::optional<Device> {
     std::shared_lock const lock(m_mutex);
     auto dev_ptr = get_storage(m_impl->storage.get()).get_no_throw<Device>(device_id);

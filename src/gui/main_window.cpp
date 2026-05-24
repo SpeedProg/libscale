@@ -15,6 +15,7 @@
 #include <gtkmm/comboboxtext.h>
 #include <gtkmm/cssprovider.h>
 #include <gtkmm/dialog.h>
+#include <gtkmm/entry.h>
 #include <gtkmm/enums.h>
 #include <gtkmm/filechooser.h>
 #include <gtkmm/filechooserdialog.h>
@@ -274,6 +275,28 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
 
     setup_history_list();
     refresh_user_list();
+
+    m_devices_list = builder->get_widget<Gtk::ListBox>("devices_list");
+    m_device_details_box = builder->get_widget<Gtk::Box>("device_details_box");
+    m_device_name_entry = builder->get_widget<Gtk::Entry>("device_name_entry");
+    m_device_key_label = builder->get_widget<Gtk::Label>("device_key_label");
+    m_device_pathway_combo = builder->get_widget<Gtk::ComboBoxText>("device_pathway_combo");
+    m_device_save_button = builder->get_widget<Gtk::Button>("device_save_button");
+
+    m_device_pathway_combo->append("FootToFoot", "Foot to Foot");
+    m_device_pathway_combo->append("HandToFoot", "Hand to Foot");
+
+    m_devices_list->signal_row_selected().connect(
+        sigc::mem_fun(*this, &MainWindow::on_device_selected));
+    m_device_save_button->signal_clicked().connect(
+        sigc::mem_fun(*this, &MainWindow::on_device_save_clicked));
+    m_device_name_entry->signal_changed().connect(
+        sigc::mem_fun(*this, &MainWindow::on_device_name_changed));
+
+    m_device_details_box->set_sensitive(false);
+    m_device_save_button->set_sensitive(false);
+
+    refresh_device_list();
 
     // Load CSS
     auto css_provider = Gtk::CssProvider::create();
@@ -1011,6 +1034,136 @@ void MainWindow::prompt_next_user_reconciliation() {
 
     m_active_dialog = std::move(dialog);
     m_active_dialog->show();
+}
+
+void MainWindow::refresh_device_list() {
+    while (auto* row = m_devices_list->get_row_at_index(0)) {
+        m_devices_list->remove(*row);
+    }
+
+    m_devices = m_manager.get_devices();
+    for (const auto& device_item : m_devices) {
+        m_devices_list->append(*Gtk::make_managed<Gtk::Label>(device_item.name));
+    }
+
+    if (!m_devices.empty()) {
+        int index_to_select = 0;
+        if (m_selected_device) {
+            auto found_device = std::ranges::find_if(m_devices, [this](const Device& device_item) {
+                return device_item.id == m_selected_device->id;
+            });
+            if (found_device != m_devices.end()) {
+                index_to_select = static_cast<int>(std::distance(m_devices.begin(), found_device));
+            }
+        }
+        auto* row = m_devices_list->get_row_at_index(index_to_select);
+        if (row != nullptr) {
+            m_devices_list->select_row(*row);
+        }
+    } else {
+        m_selected_device = std::nullopt;
+        m_device_details_box->set_sensitive(false);
+        m_device_save_button->set_sensitive(false);
+    }
+}
+
+void MainWindow::on_device_selected(Gtk::ListBoxRow* row) {
+    if (row == nullptr) {
+        m_selected_device = std::nullopt;
+        m_device_details_box->set_sensitive(false);
+        m_device_save_button->set_sensitive(false);
+        return;
+    }
+    int const index = row->get_index();
+    if (index >= 0 && std::cmp_less(index, m_devices.size())) {
+        m_selected_device = m_devices[static_cast<size_t>(index)];
+
+        m_device_name_entry->set_text(m_selected_device->name);
+        m_device_key_label->set_text(m_selected_device->device_key);
+
+        if (m_selected_device->pathway == ImpedancePathway::FootToFoot) {
+            m_device_pathway_combo->set_active_id("FootToFoot");
+        } else {
+            m_device_pathway_combo->set_active_id("HandToFoot");
+        }
+
+        m_device_details_box->set_sensitive(true);
+        on_device_name_changed();
+    }
+}
+
+void MainWindow::on_device_name_changed() {
+    if (!m_selected_device) {
+        m_device_save_button->set_sensitive(false);
+        return;
+    }
+    std::string name = m_device_name_entry->get_text();
+    bool const is_empty_or_whitespace = std::ranges::all_of(name, [](char character_item) {
+        return character_item == ' ' || character_item == '\t' || character_item == '\n' ||
+               character_item == '\v' || character_item == '\f' || character_item == '\r';
+    });
+    m_device_save_button->set_sensitive(!is_empty_or_whitespace);
+}
+
+void MainWindow::on_device_save_clicked() {
+    if (!m_selected_device) {
+        return;
+    }
+
+    std::string name = m_device_name_entry->get_text();
+    bool const is_empty_or_whitespace = std::ranges::all_of(name, [](char character_item) {
+        return character_item == ' ' || character_item == '\t' || character_item == '\n' ||
+               character_item == '\v' || character_item == '\f' || character_item == '\r';
+    });
+    if (is_empty_or_whitespace) {
+        show_error_dialog("Invalid Name",
+                          "Device name cannot be empty or consist only of whitespace.");
+        return;
+    }
+
+    ImpedancePathway pathway = ImpedancePathway::HandToFoot;
+    if (m_device_pathway_combo->get_active_id() == "FootToFoot") {
+        pathway = ImpedancePathway::FootToFoot;
+    }
+
+    bool const pathway_changed = (pathway != m_selected_device->pathway);
+    int const device_id = m_selected_device->id;
+
+    Device updated_device = *m_selected_device;
+    updated_device.name = name;
+    updated_device.pathway = pathway;
+
+    m_manager.update_device(updated_device);
+    m_selected_device = updated_device;
+
+    refresh_device_list();
+
+    if (pathway_changed) {
+        auto* dialog = Gtk::make_managed<Gtk::MessageDialog>(
+            *this, "Recalculate Historical Measurements?", false, Gtk::MessageType::QUESTION,
+            Gtk::ButtonsType::YES_NO, true);
+        dialog->set_secondary_text(
+            std::format("The electrode pathway for '{}' has been modified.\n\n"
+                        "Would you like to recalculate the body composition history for all users "
+                        "who have measurements recorded from this device?",
+                        updated_device.name));
+
+        dialog->signal_response().connect([this, dialog, device_id](int response_id) {
+            if (response_id == Gtk::ResponseType::YES) {
+                m_manager.recalculate_device_measurements(device_id);
+                if (m_current_user) {
+                    load_user_data(m_current_user->id);
+                    update_profile_view();
+                }
+            }
+            dialog->hide();
+        });
+        dialog->show();
+    } else {
+        if (m_current_user) {
+            update_profile_view();
+        }
+    }
 }
 
 }  // namespace libscale

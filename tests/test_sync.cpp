@@ -38,6 +38,8 @@ class FakeDatabaseManager : public IDatabaseManager {
     std::vector<DeviceUserMapping> mappings;
     /// List of in-memory measurements.
     std::vector<Measurement> measurements;
+    /// List of in-memory raw scale data.
+    std::vector<ScaleRawData> raw_datas;
 
     /**
      * @brief Constructor.
@@ -148,17 +150,21 @@ class FakeDatabaseManager : public IDatabaseManager {
      * @param raw_data The raw data.
      */
     void add_scale_raw_data(const ScaleRawData& raw_data) override {
-        (void)raw_data;
+        raw_datas.push_back(raw_data);
     }
 
     /**
      * @brief Gets scale raw data.
      * @param measurement_id The measurement ID.
-     * @return std::nullopt.
+     * @return Optional raw data if found, std::nullopt otherwise.
      */
     [[nodiscard]] auto get_scale_raw_data(int measurement_id) const
         -> std::optional<ScaleRawData> override {
-        (void)measurement_id;
+        for (const auto& raw : raw_datas) {
+            if (raw.measurement_id == measurement_id) {
+                return raw;
+            }
+        }
         return std::nullopt;
     }
 
@@ -188,6 +194,19 @@ class FakeDatabaseManager : public IDatabaseManager {
         device_copy.id = static_cast<int>(devices.size() + 1);
         devices.push_back(device_copy);
         return device_copy.id;
+    }
+
+    /**
+     * @brief Updates an existing device.
+     * @param device The device to update.
+     */
+    void update_device(const Device& device) override {
+        for (auto& existing_device : devices) {
+            if (existing_device.id == device.id) {
+                existing_device = device;
+                break;
+            }
+        }
     }
 
     /**
@@ -756,4 +775,79 @@ TEST(HealthManagerSyncTest, RealDbSyncWithEmptyDatabase) {
         std::filesystem::remove(db_path);
     }
 }
+
+TEST(HealthManagerDeviceTest, GetAndUpdateDeviceAndRecalculate) {
+    FakeDatabaseManager database;
+    MockScaleDevice device;
+
+    // 1. Add device
+    Device dev;
+    dev.id = 1;
+    dev.name = "Initial Soehnle";
+    dev.device_key = "usb:222d:0001";
+    dev.pathway = ImpedancePathway::FootToFoot;
+    database.devices.push_back(dev);
+
+    HealthManager manager(database, device);
+
+    // Verify get_devices
+    auto list = manager.get_devices();
+    ASSERT_EQ(list.size(), 1);
+    EXPECT_EQ(list[0].name, "Initial Soehnle");
+
+    // Verify update_device
+    dev.name = "Updated Soehnle";
+    dev.pathway = ImpedancePathway::HandToFoot;
+    manager.update_device(dev);
+
+    auto list_updated = manager.get_devices();
+    ASSERT_EQ(list_updated.size(), 1);
+    EXPECT_EQ(list_updated[0].name, "Updated Soehnle");
+    EXPECT_EQ(list_updated[0].pathway, ImpedancePathway::HandToFoot);
+
+    // 2. Set up user and measurement to test recalculate_device_measurements
+    UserProfile user;
+    user.id = 1;
+    user.name = "Alice";
+    user.height = units::Cm{170};
+    user.gender = Gender::Female;
+    user.activity_level = ActivityLevel::HomeGarden;
+    user.birthday = std::chrono::year(1990) / 1 / 1;
+    database.users.push_back(user);
+
+    // Measurement with device_id = 1
+    Measurement meas;
+    meas.id = 10;
+    meas.user_id = 1;
+    meas.device_id = 1;
+    meas.date = std::chrono::year(2026) / 5 / 22;
+    meas.weight = units::Kg{65.0};
+    meas.body_fat = units::Percent{25.0};
+    meas.muscle_mass = units::Percent{45.0};
+    meas.water = units::Percent{50.0};
+    database.measurements.push_back(meas);
+
+    // Raw scale data
+    ScaleRawData raw_data;
+    raw_data.measurement_id = 10;
+    raw_data.weight_raw = 650;
+    raw_data.imp5k = 500;
+    raw_data.imp50k = 450;
+    database.raw_datas.push_back(raw_data);
+
+    // Perform recalculation
+    manager.recalculate_device_measurements(1);
+
+    // Verify recalculation was executed and appended a new measurement
+    ASSERT_GT(database.measurements.size(), 1);
+    const auto& recalculated = database.measurements.back();
+    EXPECT_EQ(recalculated.id, 10);
+    EXPECT_EQ(recalculated.user_id, 1);
+    ASSERT_TRUE(recalculated.device_id.has_value());
+    if (recalculated.device_id) {
+        EXPECT_EQ(*recalculated.device_id, 1);
+    }
+    EXPECT_NEAR(recalculated.weight.value, 65.0, 0.001);
+}
+
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

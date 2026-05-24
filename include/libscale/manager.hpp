@@ -108,6 +108,25 @@ class HealthManager {
     void associate_scale_user(const UserProfile& scale_user, std::optional<int> user_id,
                               const SyncResult& result);
 
+    /**
+     * @brief Retrieves all physical scale devices registered in the database.
+     * @return List of devices.
+     */
+    [[nodiscard]] auto get_devices() const -> std::vector<Device>;
+
+    /**
+     * @brief Updates the settings of an existing scale device in the database.
+     * @param device The device with updated name or pathway.
+     */
+    void update_device(const Device& device);
+
+    /**
+     * @brief Recalculates historical measurements across all users that originated from a specific
+     * device.
+     * @param device_id The database ID of the scale device.
+     */
+    void recalculate_device_measurements(int device_id);
+
    private:
     void process_sync_results(int device_id, const SyncResult& result);
 

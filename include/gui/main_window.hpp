@@ -6,6 +6,8 @@
 #include <gtkmm/builder.h>
 #include <gtkmm/button.h>
 #include <gtkmm/checkbutton.h>
+#include <gtkmm/comboboxtext.h>
+#include <gtkmm/entry.h>
 #include <gtkmm/filechooserdialog.h>
 #include <gtkmm/label.h>
 #include <gtkmm/listbox.h>
@@ -111,6 +113,10 @@ class MainWindow : public Gtk::ApplicationWindow {
     void on_user_selected(Gtk::ListBoxRow* row);
     void refresh_user_list();
     void update_profile_view();
+    void refresh_device_list();
+    void on_device_selected(Gtk::ListBoxRow* row);
+    void on_device_save_clicked();
+    void on_device_name_changed();
     [[nodiscard]] auto find_current_user_iterator() const
         -> std::vector<UserProfile>::const_iterator;
     void load_user_data(int user_id);
@@ -211,6 +217,16 @@ class MainWindow : public Gtk::ApplicationWindow {
 
     std::vector<UserProfile> m_users;
     std::optional<UserProfile> m_current_user;
+
+    // Device Page Fields
+    Gtk::ListBox* m_devices_list = nullptr;
+    Gtk::Box* m_device_details_box = nullptr;
+    Gtk::Entry* m_device_name_entry = nullptr;
+    Gtk::Label* m_device_key_label = nullptr;
+    Gtk::ComboBoxText* m_device_pathway_combo = nullptr;
+    Gtk::Button* m_device_save_button = nullptr;
+    std::vector<Device> m_devices;
+    std::optional<Device> m_selected_device;
 
     // Date range filtering widgets
     Gtk::Button* m_range_30d = nullptr;
