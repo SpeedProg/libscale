@@ -17,7 +17,10 @@ struct FormulaConfig {
     struct Fat {
         struct Child {
             static constexpr double bmi_coeff = 2.44;
-            static constexpr double age_coeff = 577.0 / 1000.0; // Bypasses the linter's approximate-constant check (which falsely flags this empirical regression coefficient as the Euler-Mascheroni constant).
+            static constexpr double age_coeff =
+                577.0 /
+                1000.0;  // Bypasses the linter's approximate-constant check (which falsely flags
+                         // this empirical regression coefficient as the Euler-Mascheroni constant).
             static constexpr double imp_coeff = 0.07;
             static constexpr double offset = 56.3;
         };
@@ -45,7 +48,7 @@ struct FormulaConfig {
         static constexpr double imp5k_coeff = 0.24196;
         static constexpr double weight_coeff = 0.13796;
         static constexpr double age_coeff = 0.1152;
-        
+
         static constexpr double female_high_offset = 1.664;
         static constexpr double male_base_offset = 3.6224;
         static constexpr double male_sports_offset = 4.3904;
@@ -68,7 +71,7 @@ struct FormulaConfig {
     struct Energy {
         static constexpr double muscle_weight_coeff = 0.41359;
         static constexpr double base_const = 369.0;
-        
+
         static constexpr double mult_scarcely = 1.2;
         static constexpr double mult_light = 1.3;
         static constexpr double mult_home = 1.5;
@@ -120,4 +123,4 @@ struct FormulaConfig {
     };
 };
 
-} // namespace libscale::internal
+}  // namespace libscale::internal

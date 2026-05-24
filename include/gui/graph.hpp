@@ -1,13 +1,14 @@
 #pragma once
 #include <gtkmm/drawingarea.h>
 #include <gtkmm/gestureclick.h>
-#include <gtkmm/popover.h>
 #include <gtkmm/label.h>
-#include <vector>
-#include <optional>
+#include <gtkmm/popover.h>
 
-#include "libscale/types.hpp"
+#include <optional>
+#include <vector>
+
 #include "gui/settings.hpp"
+#include "libscale/types.hpp"
 
 namespace libscale {
 
@@ -28,8 +29,9 @@ enum class MetricType : uint8_t {
 };
 
 /**
- * @brief Custom GTK4 DrawingArea widget for rendering a clean line chart representing health trends.
- * Features automated scaling, hover-over popovers for individual data points, and date coordinate mapping.
+ * @brief Custom GTK4 DrawingArea widget for rendering a clean line chart representing health
+ * trends. Features automated scaling, hover-over popovers for individual data points, and date
+ * coordinate mapping.
  */
 class TrendGraph : public Gtk::DrawingArea {
    public:
@@ -84,7 +86,9 @@ class TrendGraph : public Gtk::DrawingArea {
      * @param width Width of the drawing area.
      * @param height Height of the drawing area.
      */
-    void on_draw(const Cairo::RefPtr<Cairo::Context>& context, int width, int height); // NOLINT(bugprone-easily-swappable-parameters): GTKmm Cairo rendering signature requires consecutive width/height dimensions.
+    void on_draw(const Cairo::RefPtr<Cairo::Context>& context, int width,
+                 int height);  // NOLINT(bugprone-easily-swappable-parameters): GTKmm Cairo
+                               // rendering signature requires consecutive width/height dimensions.
 
    private:
     auto get_value(const Measurement& measurement) const -> double;

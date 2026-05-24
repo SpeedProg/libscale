@@ -1,27 +1,28 @@
 #pragma once
-#include <gtkmm/applicationwindow.h>
-#include <gtkmm/builder.h>
-#include <gtkmm/button.h>
-#include <gtkmm/label.h>
-#include <gtkmm/listbox.h>
-#include <gtkmm/listview.h>
-#include <gtkmm/listitem.h>
-#include <gtkmm/box.h>
-#include <gtkmm/scale.h>
-#include <gtkmm/checkbutton.h>
 #include <giomm/liststore.h>
 #include <glibmm/dispatcher.h>
+#include <gtkmm/applicationwindow.h>
+#include <gtkmm/box.h>
+#include <gtkmm/builder.h>
+#include <gtkmm/button.h>
+#include <gtkmm/checkbutton.h>
+#include <gtkmm/filechooserdialog.h>
+#include <gtkmm/label.h>
+#include <gtkmm/listbox.h>
+#include <gtkmm/listitem.h>
+#include <gtkmm/listview.h>
+#include <gtkmm/messagedialog.h>
+#include <gtkmm/scale.h>
+
+#include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
-#include <memory>
-#include <gtkmm/filechooserdialog.h>
-#include <gtkmm/messagedialog.h>
 
-#include "libscale/manager.hpp"
+#include "gui/dashboard_view_model.hpp"
 #include "gui/graph.hpp"
 #include "gui/settings.hpp"
-#include "gui/dashboard_view_model.hpp"
+#include "libscale/manager.hpp"
 
 namespace libscale {
 
@@ -32,20 +33,25 @@ namespace libscale {
 class MeasurementObject : public Glib::Object {
    public:
     /**
-     * @brief Factory method creating a shared pointer-managed Glib reference wrapper for a Measurement.
+     * @brief Factory method creating a shared pointer-managed Glib reference wrapper for a
+     * Measurement.
      * @param measurement Struct to wrap.
      * @return Reference-counted Glib wrapper instance.
      */
     static auto create(const Measurement& measurement) -> Glib::RefPtr<MeasurementObject> {
-        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory): Glib reference-counting architecture requires allocating with raw new to allow RefPtr to take reference-counted ownership.
-        return Glib::make_refptr_for_instance<MeasurementObject>(new MeasurementObject(measurement));
+        // Glib reference-counting architecture requires allocating with raw new to allow RefPtr to
+        // take reference-counted ownership.
+        return Glib::make_refptr_for_instance<MeasurementObject>(
+            new MeasurementObject(measurement));  // NOLINT(cppcoreguidelines-owning-memory)
     }
 
     /**
      * @brief Retrieves the underlying wrapped Measurement record.
      * @return Const reference to the struct.
      */
-    auto get_measurement() const -> const Measurement& { return m_measurement; }
+    auto get_measurement() const -> const Measurement& {
+        return m_measurement;
+    }
 
    protected:
     /**
@@ -105,15 +111,20 @@ class MainWindow : public Gtk::ApplicationWindow {
     void on_user_selected(Gtk::ListBoxRow* row);
     void refresh_user_list();
     void update_profile_view();
-    [[nodiscard]] auto find_current_user_iterator() const -> std::vector<UserProfile>::const_iterator;
+    [[nodiscard]] auto find_current_user_iterator() const
+        -> std::vector<UserProfile>::const_iterator;
     void load_user_data(int user_id);
     void on_device_arrived();
     void on_metric_clicked(MetricType type);
     void on_export_csv_clicked();
     void on_export_json_clicked();
-    void show_info_dialog(const std::string& title, const std::string& message) /* NOLINT(bugprone-easily-swappable-parameters) */;
-    void show_error_dialog(const std::string& title, const std::string& message) /* NOLINT(bugprone-easily-swappable-parameters) */;
-    
+    void show_info_dialog(
+        const std::string& title,
+        const std::string& message) /* NOLINT(bugprone-easily-swappable-parameters) */;
+    void show_error_dialog(
+        const std::string& title,
+        const std::string& message) /* NOLINT(bugprone-easily-swappable-parameters) */;
+
     // ViewModel integration
     void on_view_model_changed();
     void update_range_button_selection(int days);
@@ -124,7 +135,8 @@ class MainWindow : public Gtk::ApplicationWindow {
 
     void check_missing_waist_circumferences();
     void prompt_next_missing_waist();
-    void prompt_recalculate_history(const UserProfile& user, const std::function<void()>& on_finished);
+    void prompt_recalculate_history(const UserProfile& user,
+                                    const std::function<void()>& on_finished);
     void prompt_waist_change(const UserProfile& user);
     void recalculate_user_history(int user_id);
 
@@ -207,7 +219,7 @@ class MainWindow : public Gtk::ApplicationWindow {
     Gtk::Label* m_range_start_label = nullptr;
     Gtk::Label* m_range_end_label = nullptr;
     Gtk::CheckButton* m_formula_v2_toggle = nullptr;
-    
+
     int m_active_preset = 0;
     bool m_updating_from_model = false;
 };

@@ -4,6 +4,7 @@
 #include <shared_mutex>
 #include <string_view>
 #include <vector>
+
 #include "libscale/database.hpp"
 
 namespace libscale {
@@ -20,7 +21,8 @@ class SqliteDatabaseManager : public IDatabaseManager {
     SqliteDatabaseManager();
 
     /**
-     * @brief Destructor. Closes SQLite connections and releases internal PIMPL implementation resources.
+     * @brief Destructor. Closes SQLite connections and releases internal PIMPL implementation
+     * resources.
      */
     ~SqliteDatabaseManager() override;
 
@@ -74,7 +76,9 @@ class SqliteDatabaseManager : public IDatabaseManager {
      * @param end Ending date of the range (inclusive).
      * @return List of processed measurements matching the query range.
      */
-    auto get_measurements_range(int user_id, std::chrono::year_month_day start, std::chrono::year_month_day end) const -> std::vector<Measurement> override;
+    auto get_measurements_range(int user_id, std::chrono::year_month_day start,
+                                std::chrono::year_month_day end) const
+        -> std::vector<Measurement> override;
 
     /**
      * @brief Inserts a new measurement record into the SQLite database.

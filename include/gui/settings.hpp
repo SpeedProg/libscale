@@ -26,7 +26,8 @@ enum class UnitSystem : uint8_t {
 };
 
 /**
- * @brief Abstract settings manager interface managing application state persistence (unit system, window sizes).
+ * @brief Abstract settings manager interface managing application state persistence (unit system,
+ * window sizes).
  */
 class ISettingsManager {
    public:
@@ -54,8 +55,6 @@ class ISettingsManager {
      * @brief Saves the current application settings state to the configuration path.
      */
     virtual void save() = 0;
-
-
 
     /**
      * @brief Retrieves the active physical unit system display preference.
@@ -141,17 +140,29 @@ class JsonSettingsManager : public ISettingsManager {
     void load(const std::filesystem::path& config_path) override;
     void save() override;
 
+    [[nodiscard]] auto get_unit_system() const -> UnitSystem override {
+        return m_units;
+    }
+    void set_unit_system(UnitSystem units) override {
+        m_units = units;
+    }
 
+    [[nodiscard]] auto get_last_user_id() const -> int override {
+        return m_last_user_id;
+    }
+    void set_last_user_id(int user_id) override {
+        m_last_user_id = user_id;
+    }
 
-    [[nodiscard]] auto get_unit_system() const -> UnitSystem override { return m_units; }
-    void set_unit_system(UnitSystem units) override { m_units = units; }
-
-    [[nodiscard]] auto get_last_user_id() const -> int override { return m_last_user_id; }
-    void set_last_user_id(int user_id) override { m_last_user_id = user_id; }
-
-    [[nodiscard]] auto get_window_width() const -> int override { return m_window_width; }
-    [[nodiscard]] auto get_window_height() const -> int override { return m_window_height; }
-    [[nodiscard]] auto get_is_maximized() const -> bool override { return m_is_maximized; }
+    [[nodiscard]] auto get_window_width() const -> int override {
+        return m_window_width;
+    }
+    [[nodiscard]] auto get_window_height() const -> int override {
+        return m_window_height;
+    }
+    [[nodiscard]] auto get_is_maximized() const -> bool override {
+        return m_is_maximized;
+    }
     void set_window_state(WindowState state) override {
         m_window_width = state.width;
         m_window_height = state.height;

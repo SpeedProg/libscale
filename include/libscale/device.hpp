@@ -66,7 +66,8 @@ class IScaleDevice {
      * @param device_user_id The scale-specific user ID string.
      * @return List of raw measurements.
      */
-    virtual auto read_measurements(const std::string& device_user_id) -> std::vector<RawMeasurement> = 0;
+    virtual auto read_measurements(const std::string& device_user_id)
+        -> std::vector<RawMeasurement> = 0;
 
     /**
      * @brief Signal emitted whenever the scale device is plugged in or arrives.
@@ -156,14 +157,20 @@ class UsbScaleDevice final : public IScaleDevice {
          * @brief Exits the libusb context.
          * @param ctx Pointer to the libusb context.
          */
-        void operator()(libusb_context* ctx) const { if (ctx != nullptr) { libusb_exit(ctx); 
-}}
+        void operator()(libusb_context* ctx) const {
+            if (ctx != nullptr) {
+                libusb_exit(ctx);
+            }
+        }
         /**
          * @brief Closes the libusb device handle.
          * @param handle Pointer to the device handle.
          */
-        void operator()(libusb_device_handle* handle) const { if (handle != nullptr) { libusb_close(handle); 
-}}
+        void operator()(libusb_device_handle* handle) const {
+            if (handle != nullptr) {
+                libusb_close(handle);
+            }
+        }
     };
 
     /**
@@ -181,25 +188,29 @@ class UsbScaleDevice final : public IScaleDevice {
          * @param ctx Libusb context.
          * @param handle Callback handle.
          */
-        HotplugHandle(libusb_context* ctx, libusb_hotplug_callback_handle handle) noexcept : m_ctx(ctx), m_handle(handle) {}
+        HotplugHandle(libusb_context* ctx, libusb_hotplug_callback_handle handle) noexcept
+            : m_ctx(ctx), m_handle(handle) {}
 
         /**
          * @brief Destructor. Deregisters the hotplug callback from libusb context.
          */
-        ~HotplugHandle() { reset(); }
+        ~HotplugHandle() {
+            reset();
+        }
 
         HotplugHandle(const HotplugHandle&) = delete;
         auto operator=(const HotplugHandle&) -> HotplugHandle& = delete;
-        
+
         /**
          * @brief Move constructor.
          * @param other The handle to move from.
          */
-        HotplugHandle(HotplugHandle&& other) noexcept : m_ctx(other.m_ctx), m_handle(other.m_handle) {
+        HotplugHandle(HotplugHandle&& other) noexcept
+            : m_ctx(other.m_ctx), m_handle(other.m_handle) {
             other.m_ctx = nullptr;
             other.m_handle = 0;
         }
-        
+
         /**
          * @brief Move assignment operator.
          * @param other The handle to move from.

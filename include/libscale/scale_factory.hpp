@@ -1,8 +1,9 @@
 #pragma once
 #include <cstdint>
 #include <memory>
-#include <string_view>
 #include <stdexcept>
+#include <string_view>
+
 #include "device.hpp"
 
 namespace libscale {
@@ -48,4 +49,4 @@ class ScaleProviderFactory {
     }
 };
 
-} // namespace libscale
+}  // namespace libscale

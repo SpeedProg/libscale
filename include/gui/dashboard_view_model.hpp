@@ -1,8 +1,10 @@
 #pragma once
-#include <vector>
+#include <sigc++/sigc++.h>
+
 #include <chrono>
 #include <functional>
-#include <sigc++/sigc++.h>
+#include <vector>
+
 #include "libscale/types.hpp"
 
 namespace libscale {
@@ -12,7 +14,7 @@ namespace libscale {
  * Decouples rendering widgets (View) from the health metrics business logics (Model).
  */
 class DashboardViewModel {
-public:
+   public:
     /**
      * @brief Default constructor.
      */
@@ -41,30 +43,36 @@ public:
      * @brief Retrieves the active filtered measurement subset.
      * @return Const reference to the filtered measurement list.
      */
-    [[nodiscard]] auto get_filtered_data() const -> const std::vector<Measurement>& { return m_filtered_data; }
+    [[nodiscard]] auto get_filtered_data() const -> const std::vector<Measurement>& {
+        return m_filtered_data;
+    }
 
     /**
      * @brief Retrieves the full unfiltered measurement dataset.
      * @return Const reference to the complete measurement list.
      */
-    [[nodiscard]] auto get_all_data() const -> const std::vector<Measurement>& { return m_all_data; }
-    
+    [[nodiscard]] auto get_all_data() const -> const std::vector<Measurement>& {
+        return m_all_data;
+    }
+
     /**
      * @brief Signal emitted whenever the filtered measurement subset undergoes any updates.
      * @return Reference to Glib signal slot.
      */
-    auto signal_data_changed() -> sigc::signal<void()>& { return m_signal_data_changed; }
+    auto signal_data_changed() -> sigc::signal<void()>& {
+        return m_signal_data_changed;
+    }
 
-private:
+   private:
     void apply_filter();
 
     std::vector<Measurement> m_all_data;
     std::vector<Measurement> m_filtered_data;
-    
+
     double m_start_pct = 0.0;
     double m_end_pct = 1.0;
-    
+
     sigc::signal<void()> m_signal_data_changed;
 };
 
-} // namespace libscale
+}  // namespace libscale

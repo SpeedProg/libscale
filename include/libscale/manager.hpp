@@ -1,17 +1,17 @@
 #pragma once
 
+#include <chrono>
+#include <functional>
 #include <memory>
-#include <vector>
 #include <string>
 #include <string_view>
-#include <functional>
-#include <chrono>
+#include <vector>
 
+#include "calculator.hpp"
 #include "database.hpp"
 #include "device.hpp"
-#include "worker.hpp"
 #include "types.hpp"
-#include "calculator.hpp"
+#include "worker.hpp"
 
 namespace libscale {
 
@@ -28,8 +28,9 @@ class HealthManager {
      * @param device Reference to the scale hardware device interface.
      * @param calculator Unique pointer to the bio-impedance calculator engine (optional).
      */
-    HealthManager(IDatabaseManager& database, IScaleDevice& device, std::unique_ptr<IBioImpedanceCalculator> calculator = nullptr);
-    
+    HealthManager(IDatabaseManager& database, IScaleDevice& device,
+                  std::unique_ptr<IBioImpedanceCalculator> calculator = nullptr);
+
     /**
      * @brief Destructor. Cleans up background threads and sync workers.
      */
@@ -45,20 +46,20 @@ class HealthManager {
      * @return List of user profiles.
      */
     [[nodiscard]] auto get_users() const -> std::vector<UserProfile>;
-    
+
     /**
      * @brief Updates biometric details of an existing user profile in the database.
      * @param user The updated user profile containing valid modified fields.
      */
     void update_user(const UserProfile& user);
-    
+
     /**
      * @brief Recalculates all historical measurements for a specific user.
      * Useful when user attributes (like height, birthdate, or waist circumference) are updated.
      * @param user_id The unique database ID of the user.
      */
     void recalculate_measurements(int user_id);
-    
+
     /**
      * @brief Deletes a user profile and all associated measurements from the database.
      * @param user_id The unique database ID of the user.
@@ -71,7 +72,7 @@ class HealthManager {
      * @return List of computed measurements, sorted chronologically.
      */
     [[nodiscard]] auto get_measurements(int user_id) const -> std::vector<Measurement>;
-    
+
     /**
      * @brief Retrieves historical measurements for a specific user within a date range.
      * @param user_id The unique database ID of the user.
@@ -79,7 +80,9 @@ class HealthManager {
      * @param end_date Ending date of the range (inclusive).
      * @return List of computed measurements matching the query range.
      */
-    [[nodiscard]] auto get_measurements_range(int user_id, std::chrono::year_month_day start_date, std::chrono::year_month_day end_date) const -> std::vector<Measurement>;
+    [[nodiscard]] auto get_measurements_range(int user_id, std::chrono::year_month_day start_date,
+                                              std::chrono::year_month_day end_date) const
+        -> std::vector<Measurement>;
 
     /**
      * @brief Initiates an asynchronous background synchronization with the scale device.
@@ -87,7 +90,7 @@ class HealthManager {
      * @param callback Callback function executed upon sync completion or failure.
      */
     void start_sync(std::function<void(SyncResult)> callback);
-    
+
     /**
      * @brief Requests any active background scale synchronization to stop immediately.
      */

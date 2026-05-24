@@ -1,9 +1,9 @@
 #pragma once
+#include <chrono>
 #include <filesystem>
 #include <optional>
 #include <string_view>
 #include <vector>
-#include <chrono>
 
 #include "types.hpp"
 
@@ -75,8 +75,10 @@ class IDatabaseManager {
      * @param end End date of the range (inclusive).
      * @return List of matching computed measurements.
      */
-    [[nodiscard]] virtual auto get_measurements_range(int user_id, std::chrono::year_month_day start,
-                                        std::chrono::year_month_day end) const -> std::vector<Measurement> = 0;
+    [[nodiscard]] virtual auto get_measurements_range(int user_id,
+                                                      std::chrono::year_month_day start,
+                                                      std::chrono::year_month_day end) const
+        -> std::vector<Measurement> = 0;
 
     /**
      * @brief Inserts a new measurement record into the database.
@@ -95,7 +97,8 @@ class IDatabaseManager {
      * @param measurement_id The database ID of the parent measurement.
      * @return Raw impedance record if found, std::nullopt otherwise.
      */
-    [[nodiscard]] virtual auto get_scale_raw_data(int measurement_id) const -> std::optional<ScaleRawData> = 0;
+    [[nodiscard]] virtual auto get_scale_raw_data(int measurement_id) const
+        -> std::optional<ScaleRawData> = 0;
 
     /**
      * @brief Deletes a single measurement record by its database ID.

@@ -1,9 +1,11 @@
 #pragma once
 
-// NOLINTBEGIN(misc-non-private-member-variables-in-classes): Structs with helper methods are treated as classes by Clang-Tidy; public variables are preferred here to prevent getter/setter boilerplate for domain models.
+// NOLINTBEGIN(misc-non-private-member-variables-in-classes): Structs with helper methods are
+// treated as classes by Clang-Tidy; public variables are preferred here to prevent getter/setter
+// boilerplate for domain models.
 
-#include "units.hpp"
 #include "types.hpp"
+#include "units.hpp"
 
 namespace libscale {
 
@@ -29,12 +31,18 @@ struct Biometrics {
      * @param age_at_meas The user's age at the time of the measurement.
      * @return Generated Biometrics instance.
      */
-    [[nodiscard]] static auto from_user(const UserProfile& user, units::Years age_at_meas) -> Biometrics {
-        return {.age=age_at_meas, .height=user.height, .gender=user.gender, .activity_level=user.activity_level, .waist_circumference=user.waist_circumference};
+    [[nodiscard]] static auto from_user(const UserProfile& user, units::Years age_at_meas)
+        -> Biometrics {
+        return {.age = age_at_meas,
+                .height = user.height,
+                .gender = user.gender,
+                .activity_level = user.activity_level,
+                .waist_circumference = user.waist_circumference};
     }
 
     /**
-     * @brief Validates physical properties inside the context (non-negative age, valid height and age ranges).
+     * @brief Validates physical properties inside the context (non-negative age, valid height and
+     * age ranges).
      * @return True if valid, false otherwise.
      */
     [[nodiscard]] auto is_valid() const -> bool {
@@ -43,6 +51,6 @@ struct Biometrics {
     }
 };
 
-} // namespace libscale
+}  // namespace libscale
 
 // NOLINTEND(misc-non-private-member-variables-in-classes)

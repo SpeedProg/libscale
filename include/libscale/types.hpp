@@ -1,6 +1,7 @@
 #pragma once
 
-// NOLINTBEGIN(misc-non-private-member-variables-in-classes): Plain Data Transport structures utilize direct public fields to allow native structural bindings and avoid redundant accessors.
+// NOLINTBEGIN(misc-non-private-member-variables-in-classes): Plain Data Transport structures
+// utilize direct public fields to allow native structural bindings and avoid redundant accessors.
 
 #include <chrono>
 #include <cstdint>
@@ -15,11 +16,11 @@ namespace libscale {
 /**
  * @brief Represents the gender of the user.
  */
-enum class Gender : uint8_t { 
+enum class Gender : uint8_t {
     /// Male
-    Male = 0, 
+    Male = 0,
     /// Female
-    Female = 1 
+    Female = 1
 };
 
 /**

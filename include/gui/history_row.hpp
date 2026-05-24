@@ -1,14 +1,16 @@
 #pragma once
 #include <gtkmm/box.h>
 #include <gtkmm/label.h>
-#include "libscale/types.hpp"
+
 #include "gui/settings.hpp"
+#include "libscale/types.hpp"
 
 namespace libscale {
 
 /**
  * @brief Custom GTK4 list item widget representing a single row in the measurement history table.
- * Adheres to SRP by managing the specific text formatting and grid alignment for a single Measurement.
+ * Adheres to SRP by managing the specific text formatting and grid alignment for a single
+ * Measurement.
  */
 class HistoryRow : public Gtk::Box {
    public:
@@ -16,9 +18,10 @@ class HistoryRow : public Gtk::Box {
      * @brief Constructs a new HistoryRow layout with labels for weight, fat, muscle, etc.
      */
     HistoryRow();
-    
+
     /**
-     * @brief Binds a computed measurement structure and formats the column labels with physical units.
+     * @brief Binds a computed measurement structure and formats the column labels with physical
+     * units.
      * @param measurement Measurement record to format and bind.
      * @param units Metric or Imperial preference.
      */

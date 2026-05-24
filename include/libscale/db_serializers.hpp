@@ -1,8 +1,10 @@
 #pragma once
+#include <sqlite_orm/sqlite_orm.h>
+
+#include <charconv>
 #include <chrono>
 #include <format>
-#include <charconv>
-#include <sqlite_orm/sqlite_orm.h>
+
 #include "types.hpp"
 
 /**
@@ -16,26 +18,28 @@ namespace sqlite_orm {
  * @brief SQLite-ORM type printer specialization for strong unit Cm.
  * Tells SQLite to store Cm as an INTEGER.
  */
-template<>
+template <>
 struct type_printer<libscale::units::Cm> : integer_printer {};
 
 /**
  * @brief SQLite-ORM field printer specialization for strong unit Cm.
  */
-template<>
+template <>
 struct field_printer<libscale::units::Cm> {
     /**
      * @brief Formats a Cm instance as a string.
      * @param val Cm unit.
      * @return Formatted string.
      */
-    auto operator()(const libscale::units::Cm& val) const -> std::string { return std::to_string(val.value); }
+    auto operator()(const libscale::units::Cm& val) const -> std::string {
+        return std::to_string(val.value);
+    }
 };
 
 /**
  * @brief SQLite-ORM statement binder specialization for strong unit Cm.
  */
-template<>
+template <>
 struct statement_binder<libscale::units::Cm> {
     /**
      * @brief Binds a Cm value to an SQLite statement parameter.
@@ -52,7 +56,7 @@ struct statement_binder<libscale::units::Cm> {
 /**
  * @brief SQLite-ORM row extractor specialization for strong unit Cm.
  */
-template<>
+template <>
 struct row_extractor<libscale::units::Cm> {
     /**
      * @brief Extracts a Cm value from a statement column.
@@ -79,26 +83,28 @@ struct row_extractor<libscale::units::Cm> {
  * @brief SQLite-ORM type printer specialization for strong unit Kg.
  * Tells SQLite to store Kg as a REAL (double).
  */
-template<>
+template <>
 struct type_printer<libscale::units::Kg> : real_printer {};
 
 /**
  * @brief SQLite-ORM field printer specialization for strong unit Kg.
  */
-template<>
+template <>
 struct field_printer<libscale::units::Kg> {
     /**
      * @brief Formats a Kg instance as a string.
      * @param val Kg unit.
      * @return Formatted string.
      */
-    auto operator()(const libscale::units::Kg& val) const -> std::string { return std::to_string(val.value); }
+    auto operator()(const libscale::units::Kg& val) const -> std::string {
+        return std::to_string(val.value);
+    }
 };
 
 /**
  * @brief SQLite-ORM statement binder specialization for strong unit Kg.
  */
-template<>
+template <>
 struct statement_binder<libscale::units::Kg> {
     /**
      * @brief Binds a Kg value to an SQLite statement parameter.
@@ -115,7 +121,7 @@ struct statement_binder<libscale::units::Kg> {
 /**
  * @brief SQLite-ORM row extractor specialization for strong unit Kg.
  */
-template<>
+template <>
 struct row_extractor<libscale::units::Kg> {
     /**
      * @brief Extracts a Kg value from a statement column.
@@ -142,26 +148,28 @@ struct row_extractor<libscale::units::Kg> {
  * @brief SQLite-ORM type printer specialization for strong unit Years.
  * Tells SQLite to store Years as an INTEGER.
  */
-template<>
+template <>
 struct type_printer<libscale::units::Years> : integer_printer {};
 
 /**
  * @brief SQLite-ORM field printer specialization for strong unit Years.
  */
-template<>
+template <>
 struct field_printer<libscale::units::Years> {
     /**
      * @brief Formats a Years instance as a string.
      * @param val Years unit.
      * @return Formatted string.
      */
-    auto operator()(const libscale::units::Years& val) const -> std::string { return std::to_string(val.value); }
+    auto operator()(const libscale::units::Years& val) const -> std::string {
+        return std::to_string(val.value);
+    }
 };
 
 /**
  * @brief SQLite-ORM statement binder specialization for strong unit Years.
  */
-template<>
+template <>
 struct statement_binder<libscale::units::Years> {
     /**
      * @brief Binds a Years value to an SQLite statement parameter.
@@ -178,7 +186,7 @@ struct statement_binder<libscale::units::Years> {
 /**
  * @brief SQLite-ORM row extractor specialization for strong unit Years.
  */
-template<>
+template <>
 struct row_extractor<libscale::units::Years> {
     /**
      * @brief Extracts a Years value from a statement column.
@@ -205,26 +213,28 @@ struct row_extractor<libscale::units::Years> {
  * @brief SQLite-ORM type printer specialization for strong unit Percent.
  * Tells SQLite to store Percent as a REAL (double).
  */
-template<>
+template <>
 struct type_printer<libscale::units::Percent> : real_printer {};
 
 /**
  * @brief SQLite-ORM field printer specialization for strong unit Percent.
  */
-template<>
+template <>
 struct field_printer<libscale::units::Percent> {
     /**
      * @brief Formats a Percent instance as a string.
      * @param val Percent unit.
      * @return Formatted string.
      */
-    auto operator()(const libscale::units::Percent& val) const -> std::string { return std::to_string(val.value); }
+    auto operator()(const libscale::units::Percent& val) const -> std::string {
+        return std::to_string(val.value);
+    }
 };
 
 /**
  * @brief SQLite-ORM statement binder specialization for strong unit Percent.
  */
-template<>
+template <>
 struct statement_binder<libscale::units::Percent> {
     /**
      * @brief Binds a Percent value to an SQLite statement parameter.
@@ -241,7 +251,7 @@ struct statement_binder<libscale::units::Percent> {
 /**
  * @brief SQLite-ORM row extractor specialization for strong unit Percent.
  */
-template<>
+template <>
 struct row_extractor<libscale::units::Percent> {
     /**
      * @brief Extracts a Percent value from a statement column.
@@ -268,26 +278,28 @@ struct row_extractor<libscale::units::Percent> {
  * @brief SQLite-ORM type printer specialization for strong unit Kcal.
  * Tells SQLite to store Kcal as an INTEGER.
  */
-template<>
+template <>
 struct type_printer<libscale::units::Kcal> : integer_printer {};
 
 /**
  * @brief SQLite-ORM field printer specialization for strong unit Kcal.
  */
-template<>
+template <>
 struct field_printer<libscale::units::Kcal> {
     /**
      * @brief Formats a Kcal instance as a string.
      * @param val Kcal unit.
      * @return Formatted string.
      */
-    auto operator()(const libscale::units::Kcal& val) const -> std::string { return std::to_string(val.value); }
+    auto operator()(const libscale::units::Kcal& val) const -> std::string {
+        return std::to_string(val.value);
+    }
 };
 
 /**
  * @brief SQLite-ORM statement binder specialization for strong unit Kcal.
  */
-template<>
+template <>
 struct statement_binder<libscale::units::Kcal> {
     /**
      * @brief Binds a Kcal value to an SQLite statement parameter.
@@ -304,7 +316,7 @@ struct statement_binder<libscale::units::Kcal> {
 /**
  * @brief SQLite-ORM row extractor specialization for strong unit Kcal.
  */
-template<>
+template <>
 struct row_extractor<libscale::units::Kcal> {
     /**
      * @brief Extracts a Kcal value from a statement column.
@@ -331,26 +343,28 @@ struct row_extractor<libscale::units::Kcal> {
  * @brief SQLite-ORM type printer specialization for enum Gender.
  * Tells SQLite to store Gender as an INTEGER.
  */
-template<>
+template <>
 struct type_printer<libscale::Gender> : integer_printer {};
 
 /**
  * @brief SQLite-ORM field printer specialization for enum Gender.
  */
-template<>
+template <>
 struct field_printer<libscale::Gender> {
     /**
      * @brief Formats a Gender value as a string.
      * @param val Gender enum.
      * @return Formatted string.
      */
-    auto operator()(const libscale::Gender& val) const -> std::string { return std::to_string(static_cast<int>(val)); }
+    auto operator()(const libscale::Gender& val) const -> std::string {
+        return std::to_string(static_cast<int>(val));
+    }
 };
 
 /**
  * @brief SQLite-ORM statement binder specialization for enum Gender.
  */
-template<>
+template <>
 struct statement_binder<libscale::Gender> {
     /**
      * @brief Binds a Gender value to an SQLite statement parameter.
@@ -367,7 +381,7 @@ struct statement_binder<libscale::Gender> {
 /**
  * @brief SQLite-ORM row extractor specialization for enum Gender.
  */
-template<>
+template <>
 struct row_extractor<libscale::Gender> {
     /**
      * @brief Extracts a Gender value from a statement column.
@@ -394,26 +408,28 @@ struct row_extractor<libscale::Gender> {
  * @brief SQLite-ORM type printer specialization for enum ActivityLevel.
  * Tells SQLite to store ActivityLevel as an INTEGER.
  */
-template<>
+template <>
 struct type_printer<libscale::ActivityLevel> : integer_printer {};
 
 /**
  * @brief SQLite-ORM field printer specialization for enum ActivityLevel.
  */
-template<>
+template <>
 struct field_printer<libscale::ActivityLevel> {
     /**
      * @brief Formats an ActivityLevel value as a string.
      * @param val ActivityLevel enum.
      * @return Formatted string.
      */
-    auto operator()(const libscale::ActivityLevel& val) const -> std::string { return std::to_string(static_cast<int>(val)); }
+    auto operator()(const libscale::ActivityLevel& val) const -> std::string {
+        return std::to_string(static_cast<int>(val));
+    }
 };
 
 /**
  * @brief SQLite-ORM statement binder specialization for enum ActivityLevel.
  */
-template<>
+template <>
 struct statement_binder<libscale::ActivityLevel> {
     /**
      * @brief Binds an ActivityLevel value to an SQLite statement parameter.
@@ -430,7 +446,7 @@ struct statement_binder<libscale::ActivityLevel> {
 /**
  * @brief SQLite-ORM row extractor specialization for enum ActivityLevel.
  */
-template<>
+template <>
 struct row_extractor<libscale::ActivityLevel> {
     /**
      * @brief Extracts an ActivityLevel value from a statement column.
@@ -457,26 +473,28 @@ struct row_extractor<libscale::ActivityLevel> {
  * @brief SQLite-ORM type printer specialization for year_month_day.
  * Tells SQLite to store year_month_day as TEXT.
  */
-template<>
+template <>
 struct type_printer<std::chrono::year_month_day> : text_printer {};
 
 /**
  * @brief SQLite-ORM field printer specialization for year_month_day.
  */
-template<>
+template <>
 struct field_printer<std::chrono::year_month_day> {
     /**
      * @brief Formats a year_month_day instance as a string.
      * @param val Date.
      * @return Formatted string.
      */
-    auto operator()(const std::chrono::year_month_day& val) const -> std::string { return std::format("'{:%F}'", val); }
+    auto operator()(const std::chrono::year_month_day& val) const -> std::string {
+        return std::format("'{:%F}'", val);
+    }
 };
 
 /**
  * @brief SQLite-ORM statement binder specialization for year_month_day.
  */
-template<>
+template <>
 struct statement_binder<std::chrono::year_month_day> {
     /**
      * @brief Binds a year_month_day value to an SQLite statement parameter as TEXT.
@@ -485,7 +503,8 @@ struct statement_binder<std::chrono::year_month_day> {
      * @param value Date to bind.
      * @return SQLite status code.
      */
-    static auto bind(sqlite3_stmt* stmt, int index, const std::chrono::year_month_day& value) -> int {
+    static auto bind(sqlite3_stmt* stmt, int index, const std::chrono::year_month_day& value)
+        -> int {
         std::string const str = std::format("{:%F}", value);
         return sqlite3_bind_text(stmt, index, str.c_str(), -1, SQLITE_TRANSIENT);
     }
@@ -503,7 +522,9 @@ struct row_extractor<std::chrono::year_month_day> {
      * @return Extracted date.
      */
     static auto extract(sqlite3_stmt* stmt, int columnIndex) -> std::chrono::year_month_day {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): SQLite C API stores text columns as unsigned char*, requiring cast to standard char* interface.
+        // SQLite C API stores text columns as unsigned char*, requiring cast to standard char*
+        // interface.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         const char* str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, columnIndex));
         if (str == nullptr) {
             return {};
@@ -516,7 +537,9 @@ struct row_extractor<std::chrono::year_month_day> {
      * @return Extracted date.
      */
     static auto extract(sqlite3_value* value) -> std::chrono::year_month_day {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast): SQLite C API stores text values as unsigned char*, requiring cast to standard char* interface.
+        // SQLite C API stores text values as unsigned char*, requiring cast to standard char*
+        // interface.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         const char* str = reinterpret_cast<const char*>(sqlite3_value_text(value));
         if (str == nullptr) {
             return {};
@@ -526,7 +549,8 @@ struct row_extractor<std::chrono::year_month_day> {
 
    private:
     static constexpr std::size_t min_date_str_len = 10;  // "YYYY-MM-DD"
-    [[nodiscard]] static auto deserialize(std::string_view date_str) -> std::chrono::year_month_day {
+    [[nodiscard]] static auto deserialize(std::string_view date_str)
+        -> std::chrono::year_month_day {
         if (date_str.length() < min_date_str_len) {
             return {};
         }
@@ -551,4 +575,4 @@ struct row_extractor<std::chrono::year_month_day> {
     }
 };
 
-} // namespace sqlite_orm
+}  // namespace sqlite_orm
