@@ -2,6 +2,7 @@
 <interface>
   <requires lib="gtk" version="4.0"/>
   <object class="GtkApplicationWindow" id="main_window">
+    <property name="name">main_window</property>
     <property name="title">Comfort Select Dashboard</property>
     <property name="default-width">1000</property>
     <property name="default-height">700</property>

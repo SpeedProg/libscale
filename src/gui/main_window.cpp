@@ -29,6 +29,7 @@
 #include <gtkmm/noselection.h>
 #include <gtkmm/object.h>
 #include <gtkmm/scale.h>
+#include <gtkmm/settings.h>
 #include <gtkmm/signallistitemfactory.h>
 #include <gtkmm/spinbutton.h>
 #include <gtkmm/stylecontext.h>
@@ -297,6 +298,13 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     m_device_save_button->set_sensitive(false);
 
     refresh_device_list();
+
+    set_name("main_window");
+
+    auto settings = Gtk::Settings::get_default();
+    if (settings) {
+        settings->property_gtk_application_prefer_dark_theme().set_value(true);
+    }
 
     // Load CSS
     auto css_provider = Gtk::CssProvider::create();
