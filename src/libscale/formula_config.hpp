@@ -14,6 +14,12 @@ struct FormulaConfig {
     static constexpr double cm_per_m = 100.0;
     static constexpr int child_age_limit = 17;
 
+    struct Pathway {
+        static constexpr double foot_to_foot_beta = 1.34;
+        static constexpr double whtr_alpha = 0.15;
+        static constexpr double whtr_threshold = 0.5;
+    };
+
     struct Fat {
         struct Child {
             static constexpr double bmi_coeff = 2.44;

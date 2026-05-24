@@ -41,6 +41,48 @@ enum class ActivityLevel : uint8_t {
 };
 
 /**
+ * @brief Represents the physical electrode pathway used for impedance measurement.
+ */
+enum class ImpedancePathway : uint8_t {
+    /// Foot-to-foot impedance path.
+    FootToFoot = 0,
+    /// Hand-to-foot impedance path.
+    HandToFoot = 1,
+    /// Segmental multi-pathway impedance path.
+    Segmental = 2
+};
+
+/**
+ * @brief Represents a physical scale device connected to the system.
+ */
+struct Device {
+    /// Unique identifier of the device in the database.
+    int id = 0;
+    /// The display name of the device.
+    std::string name;
+    /// Unique driver-level hardware key (e.g. "usb:222d:0001").
+    std::string device_key;
+    /// The physical measurement electrode pathway of the device.
+    ImpedancePathway pathway = ImpedancePathway::FootToFoot;
+};
+
+/**
+ * @brief Maps a software UserProfile to a specific user record slot on a physical scale.
+ */
+struct DeviceUserMapping {
+    /// Unique identifier of the mapping record in the database.
+    int id = 0;
+    /// Database ID reference of the software user profile (UserProfile).
+    int user_id = 0;
+    /// Database ID reference of the physical device (Device).
+    int device_id = 0;
+    /// The hardware slot index on the physical scale (1-8).
+    int slot_id = 0;
+    /// The scale-specific abstract user ID identifier string (e.g. "slot_1").
+    std::string device_user_id;
+};
+
+/**
  * @brief A user profile containing biometric data necessary for scale synchronization
  * and health metric calculations.
  */
@@ -59,9 +101,9 @@ struct UserProfile {
     std::chrono::year_month_day birthday{};
     /// User's waist circumference in centimeters (optional).
     std::optional<units::Cm> waist_circumference;
-    /// The hardware profile slot ID on the scale (1-8).
+    /// Transient hardware profile slot ID on the scale (1-8).
     int slot_id = 0;
-    /// The abstract scale-specific identifier (e.g. "slot_1").
+    /// Transient scale-specific identifier (e.g. "slot_1").
     std::string device_user_id;
 };
 
@@ -116,8 +158,8 @@ struct Measurement {
     int id = 0;
     /// Reference identifier of the user who owns this measurement.
     int user_id = 0;
-    /// Transient device user ID mapping helper.
-    std::string device_user_id;
+    /// Reference identifier of the device from which this measurement was retrieved.
+    std::optional<int> device_id;
     /// Timestamp of the measurement.
     std::chrono::year_month_day date{};
     /// Processed weight in kilograms.

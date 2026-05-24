@@ -4,6 +4,7 @@
 #include <exception>
 #include <functional>
 #include <mutex>
+#include <stdexcept>
 #include <stop_token>
 #include <utility>
 #include <vector>
@@ -21,8 +22,7 @@ SyncWorker::~SyncWorker() noexcept {
     stop();
 }
 
-void SyncWorker::start_sync(std::vector<UserProfile> existing_users,
-                            std::function<void(SyncResult)> callback) {
+void SyncWorker::start_sync(std::vector<UserProfile> existing_users, SyncCallback callback) {
     stop();
     std::lock_guard const lock(m_mutex);
     m_thread = std::jthread(
@@ -32,7 +32,7 @@ void SyncWorker::start_sync(std::vector<UserProfile> existing_users,
         });
 }
 
-void SyncWorker::start_sync_user(UserProfile user, std::function<void(SyncResult)> callback) {
+void SyncWorker::start_sync_user(UserProfile user, SyncCallback callback) {
     stop();
     std::lock_guard const lock(m_mutex);
     m_thread =
@@ -61,16 +61,15 @@ void SyncWorker::fetch_user_measurements(const std::stop_token& stop_token, cons
         if (stop_token.stop_requested()) {
             break;
         }
-        auto measurement = m_calculator.calculate(raw_item, user);
+        auto measurement = m_calculator.calculate(raw_item, user, m_device.get_impedance_pathway());
         if (measurement) {
-            measurement->device_user_id = user.device_user_id;
-            result.measurements.push_back(*measurement);
+            result.measurements.push_back(SyncMeasurement{.measurement = *measurement,
+                                                          .device_user_id = user.device_user_id});
         }
     }
 }
 
-void SyncWorker::execute_sync(const std::stop_token& stop_token,
-                              const std::function<void(SyncResult)>& callback,
+void SyncWorker::execute_sync(const std::stop_token& stop_token, const SyncCallback& callback,
                               const std::function<void(SyncResult&)>& sync_logic) {
     SyncResult result;
     try {
@@ -98,9 +97,25 @@ void SyncWorker::execute_sync(const std::stop_token& stop_token,
 
 void SyncWorker::thread_func_full_sync(const std::stop_token& stop_token,
                                        std::vector<UserProfile> existing_users,
-                                       const std::function<void(SyncResult)>& callback) {
+                                       const SyncCallback& callback) {
     execute_sync(stop_token, callback, [&](SyncResult& result) {
         auto scale_users = m_device.read_users();
+
+        // Strict validation: check that mapped profiles match in name
+        for (const auto& scale_user : scale_users) {
+            auto matching_user_it = std::ranges::find_if(
+                existing_users, [&scale_user](const UserProfile& user_profile) {
+                    return !user_profile.device_user_id.empty() &&
+                           user_profile.device_user_id == scale_user.device_user_id;
+                });
+            if (matching_user_it != existing_users.end() &&
+                matching_user_it->name != scale_user.name) {
+                throw std::runtime_error(
+                    "The users on this scale do not match the expected profiles. Please "
+                    "re-configure your device.");
+            }
+        }
+
         for (const auto& scale_user : scale_users) {
             if (stop_token.stop_requested()) {
                 return;
@@ -126,9 +141,22 @@ void SyncWorker::thread_func_full_sync(const std::stop_token& stop_token,
 }
 
 void SyncWorker::thread_func_user_sync(const std::stop_token& stop_token, const UserProfile& user,
-                                       const std::function<void(SyncResult)>& callback) {
-    execute_sync(stop_token, callback,
-                 [&](SyncResult& result) { fetch_user_measurements(stop_token, user, result); });
+                                       const SyncCallback& callback) {
+    execute_sync(stop_token, callback, [&](SyncResult& result) {
+        if (!user.device_user_id.empty()) {
+            auto scale_users = m_device.read_users();
+            auto matching_user_it =
+                std::ranges::find_if(scale_users, [&user](const UserProfile& scale_user) {
+                    return scale_user.device_user_id == user.device_user_id;
+                });
+            if (matching_user_it != scale_users.end() && matching_user_it->name != user.name) {
+                throw std::runtime_error(
+                    "The users on this scale do not match the expected profiles. Please "
+                    "re-configure your device.");
+            }
+        }
+        fetch_user_measurements(stop_token, user, result);
+    });
 }
 
 }  // namespace libscale

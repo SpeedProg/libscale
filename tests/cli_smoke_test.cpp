@@ -31,6 +31,12 @@ auto run_smoke_test() -> void {
     // 2. Initialize Device (Mock/Dummy if hardware not present)
     UsbScaleDevice device;
 
+    Device dev;
+    dev.name = device.get_device_name();
+    dev.device_key = device.get_device_key();
+    dev.pathway = device.get_impedance_pathway();
+    int const dev_id = database.add_device(dev);
+
     // 3. Initialize HealthManager
     HealthManager const manager(database, device);
     std::cout << "HealthManager initialized.\n";
@@ -52,7 +58,15 @@ auto run_smoke_test() -> void {
     user.birthday = std::chrono::year_month_day{std::chrono::year(default_year),
                                                 std::chrono::month(default_month),
                                                 std::chrono::day(default_day)};
-    database.add_user(user);
+    int const user_id = database.add_user(user);
+
+    DeviceUserMapping mapping;
+    mapping.user_id = user_id;
+    mapping.device_id = dev_id;
+    mapping.slot_id = test_slot_id;
+    mapping.device_user_id = "slot_1";
+    database.add_device_user_mapping(mapping);
+
     const auto users = manager.get_users();
     if (users.empty() || users[0].name != "Test User") {
         std::cerr << "User creation failed.\n";

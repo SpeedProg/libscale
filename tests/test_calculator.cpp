@@ -103,11 +103,7 @@ TEST(DatabaseTest,
     UserProfile user;
     user.name = "Test User";
     user.device_user_id = "slot_1";
-    db_manager.add_user(user);
-
-    auto users = db_manager.get_users();
-    ASSERT_FALSE(users.empty());
-    int const user_id = users.front().id;
+    int const user_id = db_manager.add_user(user);
 
     // 2. Add a measurement with raw data populated
     Measurement measurement;
@@ -194,4 +190,52 @@ TEST(CalculatorTest, BioImpedanceV2) {
         EXPECT_GT(measurement->ecw_v2.value, 0.0);
         EXPECT_GT(measurement->rfm, 0.0);
     }
+}
+
+TEST(CalculatorTest, FootToFootPathwayCalculations) {
+    static constexpr int test_height = 180;
+    static constexpr int test_activity = 3;
+    static constexpr int test_year = 2023;
+    static constexpr int test_month = 10;
+    static constexpr int test_day = 1;
+    static constexpr int test_imp50k = 450;
+    static constexpr int test_imp5k = 500;
+    static constexpr int test_weight_raw = 855;
+
+    static constexpr int test_waist = 100;
+
+    UserProfile user;
+    user.height = units::Cm{test_height};
+    user.gender = Gender::Male;
+    user.activity_level = static_cast<ActivityLevel>(test_activity);
+    user.birthday = std::chrono::year(birth_year) / 1 / 1;
+    user.waist_circumference = units::Cm{test_waist};
+
+    RawMeasurement raw{};
+    raw.year = test_year;
+    raw.month = test_month;
+    raw.day = test_day;
+    raw.imp50k = test_imp50k;
+    raw.imp5k = test_imp5k;
+    raw.weight_raw = test_weight_raw;
+
+    const BioImpedanceCalculatorV1 calculator;
+
+    const auto h2f_meas = calculator.calculate(raw, user, ImpedancePathway::HandToFoot);
+    ASSERT_TRUE(h2f_meas.has_value());
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+    const auto& h2f = *h2f_meas;
+
+    const auto f2f_meas = calculator.calculate(raw, user, ImpedancePathway::FootToFoot);
+    ASSERT_TRUE(f2f_meas.has_value());
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+    const auto& f2f = *f2f_meas;
+
+    EXPECT_NE(h2f.body_fat.value, f2f.body_fat.value);
+    EXPECT_NE(h2f.muscle_mass.value, f2f.muscle_mass.value);
+}
+
+TEST(DatabaseTest, MemoryDatabaseInitialization) {
+    SqliteDatabaseManager db_manager;
+    EXPECT_TRUE(db_manager.initialize(":memory:"));
 }

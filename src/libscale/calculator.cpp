@@ -52,7 +52,8 @@ auto calculate_age(std::chrono::year_month_day birthday, std::chrono::year_month
 
 }  // namespace health_utils
 
-auto BioImpedanceCalculatorV1::calculate(const RawMeasurement& raw, const UserProfile& user) const
+auto BioImpedanceCalculatorV1::calculate(const RawMeasurement& raw, const UserProfile& user,
+                                         ImpedancePathway pathway) const
     -> std::optional<Measurement> {
     const auto measurement_date = std::chrono::year(raw.year) / raw.month / raw.day;
 
@@ -64,6 +65,7 @@ auto BioImpedanceCalculatorV1::calculate(const RawMeasurement& raw, const UserPr
     CalculationContext ctx;
     ctx.weight = raw.weight();
     ctx.bio = Biometrics::from_user(user, *age_opt);
+    ctx.pathway = pathway;
 
     // Defensive Programming: Validate domain invariants
     if (!ctx.bio.is_valid()) {
@@ -74,8 +76,14 @@ auto BioImpedanceCalculatorV1::calculate(const RawMeasurement& raw, const UserPr
     const double height_m = static_cast<double>(ctx.bio.height.value) / FormulaConfig::cm_per_m;
     ctx.height_sq = height_m * height_m;
 
-    ctx.imp50k = units::Ohm{static_cast<double>(raw.imp50k)};
-    ctx.imp5k = units::Ohm{static_cast<double>(raw.imp5k)};
+    auto imp50k_val = static_cast<double>(raw.imp50k);
+    auto imp5k_val = static_cast<double>(raw.imp5k);
+    if (pathway == ImpedancePathway::FootToFoot) {
+        imp50k_val *= FormulaConfig::Pathway::foot_to_foot_beta;
+        imp5k_val *= FormulaConfig::Pathway::foot_to_foot_beta;
+    }
+    ctx.imp50k = units::Ohm{imp50k_val};
+    ctx.imp5k = units::Ohm{imp5k_val};
 
     Measurement measurement;
     measurement.user_id = user.id;
@@ -232,11 +240,13 @@ auto BioImpedanceCalculatorV1::calculate_body_fat_v2(const CalculationContext& c
     }
     const double height_cm_sq = ctx.height_sq * FormulaConfig::cm_per_m * FormulaConfig::cm_per_m;
     const double gender_val = (ctx.bio.gender == Gender::Male) ? 1.0 : 0.0;
-    const double fat_free_mass = Config::kyle_base +
-                                 (Config::kyle_h2z_coeff * height_cm_sq / ctx.imp50k.value) +
-                                 (Config::kyle_weight_coeff * ctx.weight.value) +
-                                 (Config::kyle_age_coeff * static_cast<double>(ctx.bio.age.value)) +
-                                 (Config::kyle_gender_coeff * gender_val);
+    double fat_free_mass = Config::kyle_base +
+                           (Config::kyle_h2z_coeff * height_cm_sq / ctx.imp50k.value) +
+                           (Config::kyle_weight_coeff * ctx.weight.value) +
+                           (Config::kyle_age_coeff * static_cast<double>(ctx.bio.age.value)) +
+                           (Config::kyle_gender_coeff * gender_val);
+
+    fat_free_mass *= calculate_whtr_factor(ctx);
 
     const double fat_mass = ctx.weight.value - fat_free_mass;
     const double fat_pct = (fat_mass / ctx.weight.value) * FormulaConfig::percentage_factor;
@@ -277,10 +287,12 @@ auto BioImpedanceCalculatorV1::calculate_muscle_mass_v2(const CalculationContext
     const double height_cm_sq = ctx.height_sq * FormulaConfig::cm_per_m * FormulaConfig::cm_per_m;
     const double gender_val = (ctx.bio.gender == Gender::Male) ? 1.0 : 0.0;
 
-    const double skeletal_muscle_mass =
+    double skeletal_muscle_mass =
         (Config::kim_h2z_coeff * (height_cm_sq / ctx.imp50k.value)) +
         (Config::kim_weight_coeff * ctx.weight.value) + (Config::kim_gender_coeff * gender_val) +
         (Config::kim_age_coeff * static_cast<double>(ctx.bio.age.value)) + Config::kim_offset;
+
+    skeletal_muscle_mass *= calculate_whtr_factor(ctx);
 
     return units::Percent{(skeletal_muscle_mass / ctx.weight.value) *
                           FormulaConfig::percentage_factor};
@@ -368,6 +380,19 @@ auto BioImpedanceCalculatorV1::get_water_offset(Gender gender, ActivityLevel act
         return Config::male_high_offset;
     }
     return Config::male_base_offset;
+}
+
+auto BioImpedanceCalculatorV1::calculate_whtr_factor(const CalculationContext& ctx) -> double {
+    if (ctx.pathway == ImpedancePathway::FootToFoot && ctx.bio.waist_circumference &&
+        ctx.bio.waist_circumference->value > 0 && ctx.bio.height.value > 0) {
+        const double whtr = static_cast<double>(ctx.bio.waist_circumference->value) /
+                            static_cast<double>(ctx.bio.height.value);
+        if (whtr > FormulaConfig::Pathway::whtr_threshold) {
+            return 1.0 - (FormulaConfig::Pathway::whtr_alpha *
+                          (whtr - FormulaConfig::Pathway::whtr_threshold));
+        }
+    }
+    return 1.0;
 }
 
 }  // namespace libscale

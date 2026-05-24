@@ -467,6 +467,72 @@ struct row_extractor<libscale::ActivityLevel> {
     }
 };
 
+// --- ImpedancePathway Mappings ---
+
+/**
+ * @brief SQLite-ORM type printer specialization for enum ImpedancePathway.
+ * Tells SQLite to store ImpedancePathway as an INTEGER.
+ */
+template <>
+struct type_printer<libscale::ImpedancePathway> : integer_printer {};
+
+/**
+ * @brief SQLite-ORM field printer specialization for enum ImpedancePathway.
+ */
+template <>
+struct field_printer<libscale::ImpedancePathway> {
+    /**
+     * @brief Formats an ImpedancePathway value as a string.
+     * @param val ImpedancePathway enum.
+     * @return Formatted string.
+     */
+    auto operator()(const libscale::ImpedancePathway& val) const -> std::string {
+        return std::to_string(static_cast<int>(val));
+    }
+};
+
+/**
+ * @brief SQLite-ORM statement binder specialization for enum ImpedancePathway.
+ */
+template <>
+struct statement_binder<libscale::ImpedancePathway> {
+    /**
+     * @brief Binds an ImpedancePathway value to an SQLite statement parameter.
+     * @param stmt Statement pointer.
+     * @param index Parameter index.
+     * @param value ImpedancePathway enum to bind.
+     * @return SQLite status code.
+     */
+    static auto bind(sqlite3_stmt* stmt, int index, const libscale::ImpedancePathway& value)
+        -> int {
+        return sqlite3_bind_int(stmt, index, static_cast<int>(value));
+    }
+};
+
+/**
+ * @brief SQLite-ORM row extractor specialization for enum ImpedancePathway.
+ */
+template <>
+struct row_extractor<libscale::ImpedancePathway> {
+    /**
+     * @brief Extracts an ImpedancePathway value from a statement column.
+     * @param stmt Statement pointer.
+     * @param columnIndex Column index.
+     * @return Extracted ImpedancePathway enum.
+     */
+    static auto extract(sqlite3_stmt* stmt, int columnIndex) -> libscale::ImpedancePathway {
+        return static_cast<libscale::ImpedancePathway>(sqlite3_column_int(stmt, columnIndex));
+    }
+    /**
+     * @brief Extracts an ImpedancePathway value from a SQLite value object.
+     * @param value SQLite value.
+     * @return Extracted ImpedancePathway enum.
+     */
+    static auto extract(sqlite3_value* value) -> libscale::ImpedancePathway {
+        return static_cast<libscale::ImpedancePathway>(sqlite3_value_int(value));
+    }
+};
+
 // --- year_month_day Mappings ---
 
 /**

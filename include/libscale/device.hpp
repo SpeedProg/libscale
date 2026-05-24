@@ -74,6 +74,24 @@ class IScaleDevice {
      * @return sigc::signal reference.
      */
     virtual auto signal_device_arrived() -> sigc::signal<void()> = 0;
+
+    /**
+     * @brief Gets the hardware-specific driver key.
+     * @return The hardware key string.
+     */
+    [[nodiscard]] virtual auto get_device_key() const -> std::string = 0;
+
+    /**
+     * @brief Gets the human-readable display name of the device.
+     * @return The device name.
+     */
+    [[nodiscard]] virtual auto get_device_name() const -> std::string = 0;
+
+    /**
+     * @brief Gets the biometric impedance pathway used by the device.
+     * @return The impedance pathway enum.
+     */
+    [[nodiscard]] virtual auto get_impedance_pathway() const -> ImpedancePathway = 0;
 };
 
 /**
@@ -148,6 +166,24 @@ class UsbScaleDevice final : public IScaleDevice {
         return m_signal_arrived;
     }
 
+    /**
+     * @brief Gets the hardware-specific driver key.
+     * @return The hardware key string.
+     */
+    [[nodiscard]] auto get_device_key() const -> std::string final;
+
+    /**
+     * @brief Gets the human-readable display name of the device.
+     * @return The device name.
+     */
+    [[nodiscard]] auto get_device_name() const -> std::string final;
+
+    /**
+     * @brief Gets the biometric impedance pathway used by the device.
+     * @return The impedance pathway enum.
+     */
+    [[nodiscard]] auto get_impedance_pathway() const -> ImpedancePathway final;
+
    private:
     /**
      * @brief Custom RAII deleter for managing libusb context and device handles.
@@ -188,15 +224,12 @@ class UsbScaleDevice final : public IScaleDevice {
          * @param ctx Libusb context.
          * @param handle Callback handle.
          */
-        HotplugHandle(libusb_context* ctx, libusb_hotplug_callback_handle handle) noexcept
-            : m_ctx(ctx), m_handle(handle) {}
+        HotplugHandle(libusb_context* ctx, libusb_hotplug_callback_handle handle) noexcept;
 
         /**
          * @brief Destructor. Deregisters the hotplug callback from libusb context.
          */
-        ~HotplugHandle() {
-            reset();
-        }
+        ~HotplugHandle();
 
         HotplugHandle(const HotplugHandle&) = delete;
         auto operator=(const HotplugHandle&) -> HotplugHandle& = delete;
@@ -205,38 +238,19 @@ class UsbScaleDevice final : public IScaleDevice {
          * @brief Move constructor.
          * @param other The handle to move from.
          */
-        HotplugHandle(HotplugHandle&& other) noexcept
-            : m_ctx(other.m_ctx), m_handle(other.m_handle) {
-            other.m_ctx = nullptr;
-            other.m_handle = 0;
-        }
+        HotplugHandle(HotplugHandle&& other) noexcept;
 
         /**
          * @brief Move assignment operator.
          * @param other The handle to move from.
          * @return Reference to this HotplugHandle.
          */
-        auto operator=(HotplugHandle&& other) noexcept -> HotplugHandle& {
-            if (this != &other) {
-                reset();
-                m_ctx = other.m_ctx;
-                m_handle = other.m_handle;
-                other.m_ctx = nullptr;
-                other.m_handle = 0;
-            }
-            return *this;
-        }
+        auto operator=(HotplugHandle&& other) noexcept -> HotplugHandle&;
 
         /**
          * @brief Deregisters the hotplug callback if registered.
          */
-        void reset() noexcept {
-            if ((m_ctx != nullptr) && m_handle != 0) {
-                libusb_hotplug_deregister_callback(m_ctx, m_handle);
-            }
-            m_ctx = nullptr;
-            m_handle = 0;
-        }
+        void reset() noexcept;
 
        private:
         libusb_context* m_ctx = nullptr;
@@ -256,5 +270,39 @@ class UsbScaleDevice final : public IScaleDevice {
     sigc::signal<void()> m_signal_arrived;
     std::jthread m_event_thread;
 };
+
+inline UsbScaleDevice::HotplugHandle::HotplugHandle(libusb_context* ctx,
+                                                    libusb_hotplug_callback_handle handle) noexcept
+    : m_ctx(ctx), m_handle(handle) {}
+
+inline UsbScaleDevice::HotplugHandle::~HotplugHandle() {
+    reset();
+}
+
+inline UsbScaleDevice::HotplugHandle::HotplugHandle(HotplugHandle&& other) noexcept
+    : m_ctx(other.m_ctx), m_handle(other.m_handle) {
+    other.m_ctx = nullptr;
+    other.m_handle = 0;
+}
+
+inline auto UsbScaleDevice::HotplugHandle::operator=(HotplugHandle&& other) noexcept
+    -> UsbScaleDevice::HotplugHandle& {
+    if (this != &other) {
+        reset();
+        m_ctx = other.m_ctx;
+        m_handle = other.m_handle;
+        other.m_ctx = nullptr;
+        other.m_handle = 0;
+    }
+    return *this;
+}
+
+inline void UsbScaleDevice::HotplugHandle::reset() noexcept {
+    if ((m_ctx != nullptr) && m_handle != 0) {
+        libusb_hotplug_deregister_callback(m_ctx, m_handle);
+    }
+    m_ctx = nullptr;
+    m_handle = 0;
+}
 
 }  // namespace libscale

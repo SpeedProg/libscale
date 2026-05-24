@@ -2,6 +2,7 @@
 
 #include <gdkmm/display.h>
 #include <giomm/liststore.h>
+#include <glibmm/main.h>
 #include <glibmm/refptr.h>
 #include <glibmm/ustring.h>
 #include <gtk/gtk.h>
@@ -11,6 +12,7 @@
 #include <gtkmm/builder.h>
 #include <gtkmm/button.h>
 #include <gtkmm/checkbutton.h>
+#include <gtkmm/comboboxtext.h>
 #include <gtkmm/cssprovider.h>
 #include <gtkmm/dialog.h>
 #include <gtkmm/enums.h>
@@ -418,13 +420,21 @@ void MainWindow::on_sync_complete(const SyncResult& result) {
     m_sync_button->set_sensitive(true);
     if (result.success) {
         m_status_label->set_text("Sync complete");
-        if (!result.new_users.empty()) {
-            refresh_user_list();
-            check_missing_waist_circumferences();
+
+        // Find which users in result.new_users are STILL unmapped after process_sync_results
+        m_pending_reconciliation_users.clear();
+        const auto all_local_users = m_manager.get_users();
+        for (const auto& scale_user : result.new_users) {
+            bool const is_mapped =
+                std::ranges::any_of(all_local_users, [&](const UserProfile& local_user) {
+                    return local_user.device_user_id == scale_user.device_user_id;
+                });
+            if (!is_mapped) {
+                m_pending_reconciliation_users.push_back(scale_user);
+            }
         }
-        if (m_current_user) {
-            load_user_data(m_current_user->id);
-        }
+
+        prompt_next_user_reconciliation();
     } else {
         m_status_label->set_text("Error: " + result.error_message);
     }
@@ -932,6 +942,75 @@ void MainWindow::prompt_waist_change(const UserProfile& user) {
 void MainWindow::recalculate_user_history(int user_id) {
     m_manager.recalculate_measurements(user_id);
     load_user_data(user_id);
+}
+
+void MainWindow::prompt_next_user_reconciliation() {
+    if (m_pending_reconciliation_users.empty()) {
+        refresh_user_list();
+        check_missing_waist_circumferences();
+        if (m_current_user) {
+            load_user_data(m_current_user->id);
+        }
+        return;
+    }
+
+    UserProfile scale_user = m_pending_reconciliation_users.front();
+    m_pending_reconciliation_users.erase(m_pending_reconciliation_users.begin());
+
+    auto dialog = std::make_unique<Gtk::Dialog>();
+    auto* dialog_raw = dialog.get();
+    dialog_raw->set_title(std::format("Unmapped Scale Profile: {}", scale_user.name));
+    dialog_raw->set_transient_for(*this);
+    dialog_raw->set_modal(true);
+
+    static constexpr int dialog_box_spacing = 10;
+    static constexpr int dialog_box_margin = 15;
+    auto* content_area = dialog_raw->get_content_area();
+    auto* box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, dialog_box_spacing);
+    box->set_margin(dialog_box_margin);
+
+    auto* label = Gtk::make_managed<Gtk::Label>(
+        std::format("A user profile named '{}' (Slot {}) was found on the scale but is not linked "
+                    "to any local profile.\n"
+                    "Select an existing local profile to link, or create a new one.",
+                    scale_user.name, scale_user.slot_id));
+    box->append(*label);
+
+    auto* dropdown = Gtk::make_managed<Gtk::ComboBoxText>();
+    dropdown->append("0", std::format("Create new profile: {}", scale_user.name));
+    dropdown->set_active_id("0");
+
+    auto all_local_users = m_manager.get_users();
+    for (const auto& local_user : all_local_users) {
+        if (local_user.device_user_id.empty()) {
+            dropdown->append(std::to_string(local_user.id), local_user.name);
+        }
+    }
+    box->append(*dropdown);
+    content_area->append(*box);
+
+    dialog_raw->add_button("Cancel", Gtk::ResponseType::CANCEL);
+    dialog_raw->add_button("Link", Gtk::ResponseType::ACCEPT);
+
+    dialog_raw->signal_response().connect(
+        [this, dialog_raw, scale_user, dropdown](int response_id) mutable {
+            if (response_id == Gtk::ResponseType::ACCEPT) {
+                std::string const selected_id_str = dropdown->get_active_id();
+                std::optional<int> user_id = std::nullopt;
+                if (selected_id_str != "0") {
+                    user_id = std::stoi(selected_id_str);
+                }
+                m_manager.associate_scale_user(scale_user, user_id, m_last_sync_result);
+            }
+            dialog_raw->hide();
+            Glib::signal_idle().connect_once([this]() {
+                m_active_dialog.reset();
+                prompt_next_user_reconciliation();
+            });
+        });
+
+    m_active_dialog = std::move(dialog);
+    m_active_dialog->show();
 }
 
 }  // namespace libscale

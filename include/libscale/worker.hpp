@@ -14,18 +14,33 @@
 namespace libscale {
 
 /**
+ * @brief Data transfer object containing a measurement and its associated device user ID.
+ */
+struct SyncMeasurement {
+    /// The processed biometric measurement record.
+    Measurement measurement;
+    /// The scale's identifier for this user profile slot.
+    std::string device_user_id;
+};
+
+/**
  * @brief Represents the comprehensive result of a scale synchronization operation.
  */
 struct SyncResult {
     /// True if the synchronization finished successfully, false on hardware/connection failure.
     bool success = false;
     /// A list of newly processed biometric measurements retrieved from the hardware.
-    std::vector<Measurement> measurements;
+    std::vector<SyncMeasurement> measurements;
     /// A list of newly discovered user profiles configured on the scale.
     std::vector<UserProfile> new_users;
     /// Informative error message populated if the sync operation fails.
     std::string error_message;
 };
+
+/**
+ * @brief Thread-safe callback executed upon completion of an asynchronous synchronization task.
+ */
+using SyncCallback = std::function<void(SyncResult)>;
 
 /**
  * @brief A background worker managing the multithreaded synchronization process with the scale.
@@ -74,15 +89,14 @@ class SyncWorker {
      * @param existing_users List of user profiles currently stored in the database.
      * @param callback Callback executed on the background thread upon sync completion.
      */
-    void start_sync(std::vector<UserProfile> existing_users,
-                    std::function<void(SyncResult)> callback);
+    void start_sync(std::vector<UserProfile> existing_users, SyncCallback callback);
 
     /**
      * @brief Starts an asynchronous background synchronization targeting a single user profile.
      * @param user The specific user profile to synchronize.
      * @param callback Callback executed on the background thread upon sync completion.
      */
-    void start_sync_user(UserProfile user, std::function<void(SyncResult)> callback);
+    void start_sync_user(UserProfile user, SyncCallback callback);
 
     /**
      * @brief Cooperatively requests any active background synchronization threads to stop
@@ -93,15 +107,14 @@ class SyncWorker {
    private:
     void thread_func_full_sync(const std::stop_token& stop_token,
                                std::vector<UserProfile> existing_users,
-                               const std::function<void(SyncResult)>& callback);
+                               const SyncCallback& callback);
     void thread_func_user_sync(const std::stop_token& stop_token, const UserProfile& user,
-                               const std::function<void(SyncResult)>& callback);
+                               const SyncCallback& callback);
 
     auto ensure_connected() -> bool;
     void fetch_user_measurements(const std::stop_token& stop_token, const UserProfile& user,
                                  SyncResult& result);
-    void execute_sync(const std::stop_token& stop_token,
-                      const std::function<void(SyncResult)>& callback,
+    void execute_sync(const std::stop_token& stop_token, const SyncCallback& callback,
                       const std::function<void(SyncResult&)>& sync_logic);
 
     IScaleDevice& m_device;

@@ -3,6 +3,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -96,7 +97,20 @@ class HealthManager {
      */
     void stop_sync();
 
+    /**
+     * @brief Manually associates an unmapped scale user profile with a local database user profile,
+     * or creates a new profile if no user ID is provided, and imports their sync measurements.
+     * @param scale_user The user profile details from the scale.
+     * @param user_id Optional existing local database user ID to link to. If empty, a new user is
+     * created.
+     * @param result The synchronization result containing the measurements to import.
+     */
+    void associate_scale_user(const UserProfile& scale_user, std::optional<int> user_id,
+                              const SyncResult& result);
+
    private:
+    void process_sync_results(int device_id, const SyncResult& result);
+
     IDatabaseManager& m_database;
     IScaleDevice& m_device;
     std::unique_ptr<IBioImpedanceCalculator> m_calculator;

@@ -54,10 +54,12 @@ class IBioImpedanceCalculator {
      * @brief Computes high-level health metrics from raw scale values.
      * @param raw The raw measurement containing impedance and weight.
      * @param user The user profile containing physical attributes.
+     * @param pathway The electrode measurement pathway (defaults to HandToFoot).
      * @return Computed Measurement struct if successful, std::nullopt otherwise.
      */
-    [[nodiscard]] virtual auto calculate(const RawMeasurement& raw, const UserProfile& user) const
-        -> std::optional<Measurement> = 0;
+    [[nodiscard]] virtual auto calculate(const RawMeasurement& raw, const UserProfile& user,
+                                         ImpedancePathway pathway = ImpedancePathway::HandToFoot)
+        const -> std::optional<Measurement> = 0;
 };
 
 /**
@@ -72,9 +74,11 @@ class BioImpedanceCalculatorV1 : public IBioImpedanceCalculator {
      * @brief Computes high-level health metrics using the V1 bio-impedance algorithm.
      * @param raw The raw measurement.
      * @param user The user profile.
+     * @param pathway The electrode measurement pathway (defaults to HandToFoot).
      * @return Computed Measurement struct if successful, std::nullopt otherwise.
      */
-    [[nodiscard]] auto calculate(const RawMeasurement& raw, const UserProfile& user) const
+    [[nodiscard]] auto calculate(const RawMeasurement& raw, const UserProfile& user,
+                                 ImpedancePathway pathway = ImpedancePathway::HandToFoot) const
         -> std::optional<Measurement> override;
 
    private:
@@ -89,6 +93,7 @@ class BioImpedanceCalculatorV1 : public IBioImpedanceCalculator {
         units::Kg weight;
         units::Ohm imp50k;
         units::Ohm imp5k;
+        ImpedancePathway pathway = ImpedancePathway::HandToFoot;
     };
 
     static auto calculate_body_fat(const CalculationContext& ctx) -> units::Percent;
@@ -112,6 +117,7 @@ class BioImpedanceCalculatorV1 : public IBioImpedanceCalculator {
         -> double;
     [[nodiscard]] static auto get_water_offset(Gender gender, ActivityLevel activity_level)
         -> double;
+    [[nodiscard]] static auto calculate_whtr_factor(const CalculationContext& ctx) -> double;
 };
 
 }  // namespace libscale

@@ -58,7 +58,7 @@ class MeasurementObject : public Glib::Object {
      * @brief Protected constructor initializing the wrapped Measurement.
      * @param measurement Measurement.
      */
-    explicit MeasurementObject(Measurement measurement) : m_measurement(std::move(measurement)) {}
+    explicit MeasurementObject(const Measurement& measurement) : m_measurement(measurement) {}
 
    private:
     Measurement m_measurement;
@@ -135,6 +135,7 @@ class MainWindow : public Gtk::ApplicationWindow {
 
     void check_missing_waist_circumferences();
     void prompt_next_missing_waist();
+    void prompt_next_user_reconciliation();
     void prompt_recalculate_history(const UserProfile& user,
                                     const std::function<void()>& on_finished);
     void prompt_waist_change(const UserProfile& user);
@@ -169,6 +170,7 @@ class MainWindow : public Gtk::ApplicationWindow {
     Gtk::Label* m_profile_waist = nullptr;
     Gtk::Button* m_btn_edit_waist = nullptr;
     std::vector<UserProfile> m_users_needing_waist;
+    std::vector<UserProfile> m_pending_reconciliation_users;
 
     // Metric Cards
     Gtk::Button* m_card_weight = nullptr;
@@ -205,6 +207,7 @@ class MainWindow : public Gtk::ApplicationWindow {
     std::unique_ptr<Gtk::FileChooserDialog> m_json_export_dialog;
     std::unique_ptr<Gtk::MessageDialog> m_info_dialog;
     std::unique_ptr<Gtk::MessageDialog> m_error_dialog;
+    std::unique_ptr<Gtk::Dialog> m_active_dialog;
 
     std::vector<UserProfile> m_users;
     std::optional<UserProfile> m_current_user;

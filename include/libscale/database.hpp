@@ -46,8 +46,9 @@ class IDatabaseManager {
     /**
      * @brief Inserts a new user profile record into the database.
      * @param user The user profile struct populated with data.
+     * @return The database ID of the inserted user.
      */
-    virtual void add_user(const UserProfile& user) = 0;
+    virtual auto add_user(const UserProfile& user) -> int = 0;
 
     /**
      * @brief Updates an existing user profile record in the database.
@@ -105,6 +106,59 @@ class IDatabaseManager {
      * @param measurement_id The database ID of the measurement to delete.
      */
     virtual void delete_measurement(int measurement_id) = 0;
+
+    /**
+     * @brief Fetches all registered physical scale devices.
+     * @return List of devices.
+     */
+    [[nodiscard]] virtual auto get_devices() const -> std::vector<Device> = 0;
+
+    /**
+     * @brief Inserts a new scale device record.
+     * @param device The device to insert.
+     * @return The database ID of the inserted device.
+     */
+    virtual auto add_device(const Device& device) -> int = 0;
+
+    /**
+     * @brief Fetches a scale device by its database ID.
+     * @param device_id The database ID of the device.
+     * @return The device record if found, std::nullopt otherwise.
+     */
+    [[nodiscard]] virtual auto get_device(int device_id) const -> std::optional<Device> = 0;
+
+    /**
+     * @brief Fetches a scale device by its hardware key.
+     * @param device_key The hardware key (e.g. "usb:222d:0001").
+     * @return The device record if found, std::nullopt otherwise.
+     */
+    [[nodiscard]] virtual auto get_device_by_key(const std::string& device_key) const
+        -> std::optional<Device> = 0;
+
+    /**
+     * @brief Fetches all device-user mappings for a specific software user profile.
+     * @param user_id The database ID of the user.
+     * @return List of device-user mappings.
+     */
+    [[nodiscard]] virtual auto get_device_user_mappings(int user_id) const
+        -> std::vector<DeviceUserMapping> = 0;
+
+    /**
+     * @brief Inserts a new device-user mapping.
+     * @param mapping The mapping to insert.
+     * @return The database ID of the inserted mapping.
+     */
+    virtual auto add_device_user_mapping(const DeviceUserMapping& mapping) -> int = 0;
+
+    /**
+     * @brief Fetches a device-user mapping by device ID and scale-specific user ID string.
+     * @param device_id The database ID of the device.
+     * @param device_user_id The scale-specific user ID identifier string.
+     * @return The mapping record if found, std::nullopt otherwise.
+     */
+    [[nodiscard]] virtual auto get_device_user_mapping(int device_id,
+                                                       const std::string& device_user_id) const
+        -> std::optional<DeviceUserMapping> = 0;
 };
 
 }  // namespace libscale
