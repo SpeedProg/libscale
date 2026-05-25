@@ -328,6 +328,7 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
 }
 
 MainWindow::~MainWindow() {
+    m_manager.stop_sync();
     int win_width = 0;
     int win_height = 0;
     get_default_size(win_width, win_height);
