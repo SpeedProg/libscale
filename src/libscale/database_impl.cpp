@@ -13,6 +13,8 @@
 #include <shared_mutex>
 #include <stdexcept>
 #include <string>
+#include <system_error>
+#include <utility>
 #include <vector>
 
 #include "libscale/db_serializers.hpp"  // NOLINT(misc-include-cleaner): METAPROGRAMMING: Registering sqlite_orm custom serializers via template specializations.
@@ -109,20 +111,68 @@ SqliteDatabaseManager::~SqliteDatabaseManager() = default;
 
 auto SqliteDatabaseManager::initialize(const std::filesystem::path& db_path) -> bool {
     std::unique_lock const lock(m_mutex);
+
+    // Ensure parent directory exists
     try {
-        m_impl->storage = std::make_unique<Storage>(make_sqlite_storage(db_path.string()));
-        m_impl->storage->on_open = [](sqlite3* database) {
+        if (auto parent = db_path.parent_path(); !parent.empty()) {
+            std::filesystem::create_directories(parent);
+        }
+    } catch (const std::exception& ex) {
+        std::cerr << "Failed to create database parent directory: " << ex.what() << "\n";
+        return false;
+    }
+
+    bool const existed = std::filesystem::exists(db_path);
+    std::filesystem::path backup_path = db_path;
+    backup_path += ".tmp_backup";
+
+    if (existed) {
+        try {
+            std::filesystem::copy_file(db_path, backup_path,
+                                       std::filesystem::copy_options::overwrite_existing);
+        } catch (const std::exception& ex) {
+            std::cerr << "Failed to create database backup: " << ex.what() << "\n";
+            return false;
+        }
+    }
+
+    try {
+        auto new_storage = std::make_unique<Storage>(make_sqlite_storage(db_path.string()));
+        new_storage->on_open = [](sqlite3* database) {
             sqlite3_exec(database, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr);
         };
-        m_impl->storage->sync_schema();
+        new_storage->sync_schema();
+
+        // Ensure owner-only permissions (chmod 600)
         if (std::filesystem::exists(db_path)) {
             std::filesystem::permissions(
                 db_path, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write);
         }
+
+        m_impl->storage = std::move(new_storage);
+
+        // Success: Clean up backup if it exists
+        if (existed) {
+            std::filesystem::remove(backup_path);
+        }
     } catch (const std::exception& ex) {
-        std::cerr << "Database schema synchronization failed: " << ex.what()
-                  << ". During development, if schema conflicts occur, please delete the old "
-                     "database file to recreate it.\n";
+        std::cerr << "Database schema synchronization failed: " << ex.what() << "\n";
+
+        // Rollback: Close storage first to release locks
+        m_impl->storage.reset();
+
+        if (existed) {
+            try {
+                std::filesystem::copy_file(backup_path, db_path,
+                                           std::filesystem::copy_options::overwrite_existing);
+                std::filesystem::remove(backup_path);
+            } catch (const std::exception& rollback_ex) {
+                std::cerr << "Database rollback failed: " << rollback_ex.what() << "\n";
+            }
+        } else {
+            std::error_code err_code;
+            std::filesystem::remove(db_path, err_code);
+        }
         return false;
     }
     return true;

@@ -239,3 +239,28 @@ TEST(DatabaseTest, MemoryDatabaseInitialization) {
     SqliteDatabaseManager db_manager;
     EXPECT_TRUE(db_manager.initialize(":memory:"));
 }
+
+TEST(DatabaseTest, DatabaseFilePermissions) {
+    std::filesystem::path const db_path = "test_perms.db";
+    if (std::filesystem::exists(db_path)) {
+        std::filesystem::remove(db_path);
+    }
+
+    {
+        SqliteDatabaseManager db_manager;
+        ASSERT_TRUE(db_manager.initialize(db_path));
+    }
+
+    ASSERT_TRUE(std::filesystem::exists(db_path));
+    auto perms = std::filesystem::status(db_path).permissions();
+
+    // Check that group and others have no permissions
+    EXPECT_EQ(perms & std::filesystem::perms::group_all, std::filesystem::perms::none);
+    EXPECT_EQ(perms & std::filesystem::perms::others_all, std::filesystem::perms::none);
+
+    // Check that owner has read and write permissions
+    EXPECT_NE(perms & std::filesystem::perms::owner_read, std::filesystem::perms::none);
+    EXPECT_NE(perms & std::filesystem::perms::owner_write, std::filesystem::perms::none);
+
+    std::filesystem::remove(db_path);
+}
