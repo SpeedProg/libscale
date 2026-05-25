@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <iterator>
 #include <vector>
-
 #include "libscale/types.hpp"
 
 namespace libscale {
@@ -35,16 +35,13 @@ void DashboardViewModel::set_range_preset(int days) {
         m_end_pct = 1.0;
     } else {
         const auto& latest_date = m_all_data.back().date;
-        auto cutoff = std::chrono::sys_days{latest_date} - std::chrono::days{days};
+        auto const cutoff = std::chrono::sys_days{latest_date} - std::chrono::days{days};
 
-        size_t start_idx = 0;
-        for (size_t i = 0; i < m_all_data.size(); ++i) {
-            auto meas_date = std::chrono::sys_days{m_all_data[i].date};
-            if (meas_date >= cutoff) {
-                start_idx = i;
-                break;
-            }
-        }
+        auto const cutoff_it =
+            std::ranges::lower_bound(m_all_data, cutoff, {}, [](const Measurement& measurement) {
+                return std::chrono::sys_days{measurement.date};
+            });
+        auto const start_idx = static_cast<size_t>(std::distance(m_all_data.begin(), cutoff_it));
 
         m_start_pct = static_cast<double>(start_idx) /
                       static_cast<double>(std::max<size_t>(1, m_all_data.size() - 1));
