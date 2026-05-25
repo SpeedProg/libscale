@@ -9,6 +9,7 @@
 
 #include <sigc++/sigc++.h>
 
+#include <mutex>
 #include <span>
 #include <thread>
 #include <vector>
@@ -253,8 +254,11 @@ class UsbScaleDevice final : public IScaleDevice {
         void reset() noexcept;
 
        private:
+        void reset_internal() noexcept;
+
         libusb_context* m_ctx = nullptr;
         libusb_hotplug_callback_handle m_handle = 0;
+        mutable std::mutex m_mutex;
     };
 
     void cleanup_internal();
@@ -279,8 +283,10 @@ inline UsbScaleDevice::HotplugHandle::~HotplugHandle() {
     reset();
 }
 
-inline UsbScaleDevice::HotplugHandle::HotplugHandle(HotplugHandle&& other) noexcept
-    : m_ctx(other.m_ctx), m_handle(other.m_handle) {
+inline UsbScaleDevice::HotplugHandle::HotplugHandle(HotplugHandle&& other) noexcept {
+    std::lock_guard const lock(other.m_mutex);
+    m_ctx = other.m_ctx;       // NOLINT(cppcoreguidelines-prefer-member-initializer)
+    m_handle = other.m_handle; // NOLINT(cppcoreguidelines-prefer-member-initializer)
     other.m_ctx = nullptr;
     other.m_handle = 0;
 }
@@ -288,7 +294,11 @@ inline UsbScaleDevice::HotplugHandle::HotplugHandle(HotplugHandle&& other) noexc
 inline auto UsbScaleDevice::HotplugHandle::operator=(HotplugHandle&& other) noexcept
     -> UsbScaleDevice::HotplugHandle& {
     if (this != &other) {
-        reset();
+        std::lock(m_mutex, other.m_mutex);
+        std::lock_guard const lock_this(m_mutex, std::adopt_lock);
+        std::lock_guard const lock_other(other.m_mutex, std::adopt_lock);
+
+        reset_internal();
         m_ctx = other.m_ctx;
         m_handle = other.m_handle;
         other.m_ctx = nullptr;
@@ -298,6 +308,11 @@ inline auto UsbScaleDevice::HotplugHandle::operator=(HotplugHandle&& other) noex
 }
 
 inline void UsbScaleDevice::HotplugHandle::reset() noexcept {
+    std::lock_guard const lock(m_mutex);
+    reset_internal();
+}
+
+inline void UsbScaleDevice::HotplugHandle::reset_internal() noexcept {
     if ((m_ctx != nullptr) && m_handle != 0) {
         libusb_hotplug_deregister_callback(m_ctx, m_handle);
     }
