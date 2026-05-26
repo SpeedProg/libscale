@@ -29,6 +29,18 @@ enum class MetricType : uint8_t {
 };
 
 /**
+ * @brief Identifies the grouping category of metric scales.
+ */
+enum class ScaleType : uint8_t {
+    /// Absolute weight values.
+    Weight,
+    /// Dimensionless Body Mass Index.
+    BMI,
+    /// Percentages (Fat, Water, Muscle).
+    Percentage
+};
+
+/**
  * @brief Custom GTK4 DrawingArea widget for rendering a clean line chart representing health
  * trends. Features automated scaling, hover-over popovers for individual data points, and date
  * coordinate mapping.
@@ -62,6 +74,12 @@ class TrendGraph : public Gtk::DrawingArea {
     void set_metric(MetricType metric);
 
     /**
+     * @brief Sets the list of active metrics to plot overlay lines.
+     * @param metrics Vector of selected metric types.
+     */
+    void set_metrics(const std::vector<MetricType>& metrics);
+
+    /**
      * @brief Toggles compact rendering mode (useful for small sidebar layouts).
      * @param compact True to enable compact rendering.
      */
@@ -91,16 +109,41 @@ class TrendGraph : public Gtk::DrawingArea {
                                // rendering signature requires consecutive width/height dimensions.
 
    private:
-    auto get_value(const Measurement& measurement) const -> double;
+    auto get_value(const Measurement& measurement, MetricType metric) const -> double;
     static auto get_time_value(std::chrono::year_month_day date) -> double;
     static auto format_time_value(double days) -> std::string;
     void on_click(int n_press, double x_input, double y_input);
 
+    /**
+     * @brief Computes the dynamic left and right graph paddings based on active scale types.
+     * @return Pair containing left padding and right padding in pixels.
+     */
+    auto get_paddings() const -> std::pair<double, double>;
+
+    /**
+     * @brief Renders the trend graph with a single active metric line and standard single Y-axis.
+     * @param context Cairo drawing context.
+     * @param width Width of the drawing area.
+     * @param height Height of the drawing area.
+     */
+    void draw_single_metric(const Cairo::RefPtr<Cairo::Context>& context, int width,
+                            int height);  // NOLINT(bugprone-easily-swappable-parameters)
+
+    /**
+     * @brief Renders the trend graph with multiple metric lines and overlay Y-axes.
+     * @param context Cairo drawing context.
+     * @param width Width of the drawing area.
+     * @param height Height of the drawing area.
+     */
+    void draw_multi_metric(const Cairo::RefPtr<Cairo::Context>& context, int width,
+                           int height);  // NOLINT(bugprone-easily-swappable-parameters)
+
     std::vector<Measurement> m_data;
-    MetricType m_metric = MetricType::Weight;
+    std::vector<MetricType> m_metrics = {MetricType::Weight};
     UnitSystem m_units = UnitSystem::Metric;
     bool m_compact = false;
     bool m_use_v2 = false;
+    std::optional<size_t> m_selected_index;
 
     Glib::RefPtr<Gtk::GestureClick> m_click_gesture;
     Gtk::Popover m_popover;

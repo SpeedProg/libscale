@@ -154,6 +154,17 @@
                                 <property name="active">false</property>
                               </object>
                             </child>
+                            <child>
+                              <object class="GtkSeparator">
+                                <property name="orientation">vertical</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkCheckButton" id="multi_metric_toggle">
+                                <property name="label">Overlay Mode</property>
+                                <property name="active">false</property>
+                              </object>
+                            </child>
                           </object>
                         </child>
                         <child>

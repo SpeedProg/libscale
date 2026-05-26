@@ -99,7 +99,7 @@ auto find_resource(const std::filesystem::path& rel_path) -> std::string {
 }
 }  // namespace
 
-MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder,
+MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder,  // NOLINT(readability-function-cognitive-complexity)
                        HealthManager& manager, ISettingsManager& settings_manager)
     : Gtk::ApplicationWindow(cobject),
       m_manager(manager),
@@ -190,6 +190,18 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     m_range_end_label = builder->get_widget<Gtk::Label>("range_end_label");
     m_formula_v2_toggle = builder->get_widget<Gtk::CheckButton>("formula_v2_toggle");
     m_formula_v2_toggle->signal_toggled().connect([this]() -> void { on_view_model_changed(); });
+
+    m_multi_metric_toggle = builder->get_widget<Gtk::CheckButton>("multi_metric_toggle");
+    m_multi_metric_toggle->signal_toggled().connect([this]() -> void {
+        if (!m_multi_metric_toggle->get_active()) {
+            if (m_selected_metrics.empty()) {
+                m_selected_metrics = {MetricType::Weight};
+            } else {
+                m_selected_metrics = {m_selected_metrics.front()};
+            }
+        }
+        on_view_model_changed();
+    });
 
     m_range_30d->signal_clicked().connect([this]() -> void {
         m_active_preset = range_preset_30d;
@@ -406,12 +418,30 @@ void MainWindow::on_view_model_changed() {
     m_spark_water->set_use_v2(use_v2);
     m_spark_muscle->set_use_v2(use_v2);
 
+    m_main_graph->set_metrics(m_selected_metrics);
     m_main_graph->set_data(filtered);
     m_spark_weight->set_data(filtered);
     m_spark_bmi->set_data(filtered);
     m_spark_fat->set_data(filtered);
     m_spark_water->set_data(filtered);
     m_spark_muscle->set_data(filtered);
+
+    auto update_card_selection = [this](Gtk::Button* card, MetricType type, const std::string& type_name) -> void {
+        card->remove_css_class("selected");
+        card->remove_css_class(type_name);
+        
+        bool const is_selected = std::ranges::find(m_selected_metrics, type) != m_selected_metrics.end();
+        if (is_selected) {
+            card->add_css_class("selected");
+            card->add_css_class(type_name);
+        }
+    };
+
+    update_card_selection(m_card_weight, MetricType::Weight, "weight");
+    update_card_selection(m_card_bmi, MetricType::BMI, "bmi");
+    update_card_selection(m_card_fat, MetricType::BodyFat, "fat");
+    update_card_selection(m_card_water, MetricType::Water, "water");
+    update_card_selection(m_card_muscle, MetricType::Muscle, "muscle");
 
     m_history_model->remove_all();
     auto history = filtered;
@@ -519,30 +549,19 @@ void MainWindow::load_user_data(int user_id) {
 }
 
 void MainWindow::on_metric_clicked(MetricType type) {
-    m_main_graph->set_metric(type);
-    m_card_weight->remove_css_class("selected");
-    m_card_bmi->remove_css_class("selected");
-    m_card_fat->remove_css_class("selected");
-    m_card_water->remove_css_class("selected");
-    m_card_muscle->remove_css_class("selected");
-
-    switch (type) {
-        case MetricType::Weight:
-            m_card_weight->add_css_class("selected");
-            break;
-        case MetricType::BMI:
-            m_card_bmi->add_css_class("selected");
-            break;
-        case MetricType::BodyFat:
-            m_card_fat->add_css_class("selected");
-            break;
-        case MetricType::Water:
-            m_card_water->add_css_class("selected");
-            break;
-        case MetricType::Muscle:
-            m_card_muscle->add_css_class("selected");
-            break;
+    if ((m_multi_metric_toggle != nullptr) && m_multi_metric_toggle->get_active()) {
+        auto const metric_it = std::ranges::find(m_selected_metrics, type);
+        if (metric_it != m_selected_metrics.end()) {
+            if (m_selected_metrics.size() > 1) {
+                m_selected_metrics.erase(metric_it);
+            }
+        } else {
+            m_selected_metrics.push_back(type);
+        }
+    } else {
+        m_selected_metrics = {type};
     }
+    on_view_model_changed();
 }
 
 void MainWindow::setup_history_list() {

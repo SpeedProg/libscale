@@ -33,6 +33,36 @@
     box-shadow: 0 0 10px rgba(0, 170, 255, 0.2);
 }
 
+.metric-card.selected.weight {
+    background: rgba(0, 170, 255, 0.15);
+    border-color: #00aaff;
+    box-shadow: 0 0 10px rgba(0, 170, 255, 0.2);
+}
+
+.metric-card.selected.bmi {
+    background: rgba(160, 32, 240, 0.15);
+    border-color: #a020f0;
+    box-shadow: 0 0 10px rgba(160, 32, 240, 0.2);
+}
+
+.metric-card.selected.fat {
+    background: rgba(255, 87, 34, 0.15);
+    border-color: #ff5722;
+    box-shadow: 0 0 10px rgba(255, 87, 34, 0.2);
+}
+
+.metric-card.selected.water {
+    background: rgba(33, 150, 243, 0.15);
+    border-color: #2196f3;
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.2);
+}
+
+.metric-card.selected.muscle {
+    background: rgba(76, 175, 80, 0.15);
+    border-color: #4caf50;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.2);
+}
+
 .metric-label {
     font-size: 0.9rem;
     color: #888;

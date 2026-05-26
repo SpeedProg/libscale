@@ -238,6 +238,10 @@ class MainWindow : public Gtk::ApplicationWindow {
     Gtk::Label* m_range_start_label = nullptr;
     Gtk::Label* m_range_end_label = nullptr;
     Gtk::CheckButton* m_formula_v2_toggle = nullptr;
+    /// Checkbox for toggling Overlay Mode to display multiple metrics simultaneously.
+    Gtk::CheckButton* m_multi_metric_toggle = nullptr;
+    /// The collection of currently selected/active metrics to display in Overlay Mode.
+    std::vector<MetricType> m_selected_metrics = {MetricType::Weight};
 
     int m_active_preset = 0;
     bool m_updating_from_model = false;
