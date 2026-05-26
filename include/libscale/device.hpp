@@ -284,9 +284,9 @@ inline UsbScaleDevice::HotplugHandle::~HotplugHandle() {
 }
 
 inline UsbScaleDevice::HotplugHandle::HotplugHandle(HotplugHandle&& other) noexcept {
-    std::lock_guard const lock(other.m_mutex);
-    m_ctx = other.m_ctx;       // NOLINT(cppcoreguidelines-prefer-member-initializer)
-    m_handle = other.m_handle; // NOLINT(cppcoreguidelines-prefer-member-initializer)
+    std::scoped_lock const lock(other.m_mutex);
+    m_ctx = other.m_ctx;        // NOLINT(cppcoreguidelines-prefer-member-initializer)
+    m_handle = other.m_handle;  // NOLINT(cppcoreguidelines-prefer-member-initializer)
     other.m_ctx = nullptr;
     other.m_handle = 0;
 }
@@ -294,9 +294,7 @@ inline UsbScaleDevice::HotplugHandle::HotplugHandle(HotplugHandle&& other) noexc
 inline auto UsbScaleDevice::HotplugHandle::operator=(HotplugHandle&& other) noexcept
     -> UsbScaleDevice::HotplugHandle& {
     if (this != &other) {
-        std::lock(m_mutex, other.m_mutex);
-        std::lock_guard const lock_this(m_mutex, std::adopt_lock);
-        std::lock_guard const lock_other(other.m_mutex, std::adopt_lock);
+        std::scoped_lock const lock(m_mutex, other.m_mutex);
 
         reset_internal();
         m_ctx = other.m_ctx;
@@ -308,7 +306,7 @@ inline auto UsbScaleDevice::HotplugHandle::operator=(HotplugHandle&& other) noex
 }
 
 inline void UsbScaleDevice::HotplugHandle::reset() noexcept {
-    std::lock_guard const lock(m_mutex);
+    std::scoped_lock const lock(m_mutex);
     reset_internal();
 }
 

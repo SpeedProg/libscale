@@ -22,6 +22,7 @@
 #include "gui/settings.hpp"
 #include "libscale/types.hpp"
 
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is used on data vectors where indices are pre-validated.
 namespace libscale {
 
 namespace {
@@ -64,8 +65,8 @@ class CoordinateMapper {
         if (m_range < min_range_threshold) {
             m_range = default_range_val;
         }
-        m_min_val = min_v - m_range * range_margin_factor;
-        m_max_val = max_v + m_range * range_margin_factor;
+        m_min_val = min_v - (m_range * range_margin_factor);
+        m_max_val = max_v + (m_range * range_margin_factor);
         m_range = m_max_val - m_min_val;
 
         m_min_time = min_t;
@@ -75,8 +76,8 @@ class CoordinateMapper {
             m_time_range = 1.0;
         }
 
-        m_graph_width = m_width - multiplier_2 * m_padding;
-        m_graph_height = m_height - multiplier_2 * m_padding;
+        m_graph_width = m_width - (multiplier_2 * m_padding);
+        m_graph_height = m_height - (multiplier_2 * m_padding);
     }
 
     // Mapping function converts 2D (val, time) points to screen coordinates.
@@ -230,8 +231,9 @@ auto TrendGraph::format_time_value(double days) -> std::string {
 
 void TrendGraph::on_draw(const Cairo::RefPtr<Cairo::Context>& context, int width, int height) {
     auto mapper_opt = create_mapper(
-        m_data, width, height, m_compact, [this](const auto& meas) { return get_value(meas); },
-        [](auto date) { return get_time_value(date); });
+        m_data, width, height, m_compact,
+        [this](const auto& meas) -> auto { return get_value(meas); },
+        [](auto date) -> auto { return get_time_value(date); });
 
     if (!mapper_opt) {
         return;
@@ -325,8 +327,8 @@ void TrendGraph::on_draw(const Cairo::RefPtr<Cairo::Context>& context, int width
 void TrendGraph::on_click(int /*n_press*/, double x_input, double y_input) {
     auto mapper_opt = create_mapper(
         m_data, get_width(), get_height(), m_compact,
-        [this](const auto& measurement) { return get_value(measurement); },
-        [](auto date) { return get_time_value(date); });
+        [this](const auto& measurement) -> auto { return get_value(measurement); },
+        [](auto date) -> auto { return get_time_value(date); });
 
     if (!mapper_opt) {
         m_popover.popdown();
@@ -371,3 +373,4 @@ void TrendGraph::on_click(int /*n_press*/, double x_input, double y_input) {
 }
 
 }  // namespace libscale
+// NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)

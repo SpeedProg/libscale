@@ -24,26 +24,25 @@ SyncWorker::~SyncWorker() noexcept {
 
 void SyncWorker::start_sync(std::vector<UserProfile> existing_users, SyncCallback callback) {
     stop();
-    std::lock_guard const lock(m_mutex);
+    std::scoped_lock const lock(m_mutex);
     m_thread = std::jthread(
         [this, users = std::move(existing_users),
-         callback_moved = std::move(callback)](const std::stop_token& stop_token) mutable {
+         callback_moved = std::move(callback)](const std::stop_token& stop_token) mutable -> void {
             thread_func_full_sync(stop_token, std::move(users), callback_moved);
         });
 }
 
-void SyncWorker::start_sync_user(UserProfile user, SyncCallback callback) {
+void SyncWorker::start_sync_user(const UserProfile& user, SyncCallback callback) {
     stop();
-    std::lock_guard const lock(m_mutex);
-    m_thread =
-        std::jthread([this, user_moved = std::move(user), callback_moved = std::move(callback)](
-                         const std::stop_token& stop_token) mutable {
-            thread_func_user_sync(stop_token, user_moved, callback_moved);
-        });
+    std::scoped_lock const lock(m_mutex);
+    m_thread = std::jthread([this, user_moved = user, callback_moved = std::move(callback)](
+                                const std::stop_token& stop_token) mutable -> void {
+        thread_func_user_sync(stop_token, user_moved, callback_moved);
+    });
 }
 
 void SyncWorker::stop() {
-    std::lock_guard const lock(m_mutex);
+    std::scoped_lock const lock(m_mutex);
     if (m_thread.joinable()) {
         m_thread.request_stop();
         m_thread.join();
@@ -98,13 +97,13 @@ void SyncWorker::execute_sync(const std::stop_token& stop_token, const SyncCallb
 void SyncWorker::thread_func_full_sync(const std::stop_token& stop_token,
                                        std::vector<UserProfile> existing_users,
                                        const SyncCallback& callback) {
-    execute_sync(stop_token, callback, [&](SyncResult& result) {
+    execute_sync(stop_token, callback, [&](SyncResult& result) -> void {
         auto scale_users = m_device.read_users();
 
         // Strict validation: check that mapped profiles match in name
         for (const auto& scale_user : scale_users) {
             auto matching_user_it = std::ranges::find_if(
-                existing_users, [&scale_user](const UserProfile& user_profile) {
+                existing_users, [&scale_user](const UserProfile& user_profile) -> bool {
                     return !user_profile.device_user_id.empty() &&
                            user_profile.device_user_id == scale_user.device_user_id;
                 });
@@ -121,7 +120,7 @@ void SyncWorker::thread_func_full_sync(const std::stop_token& stop_token,
                 return;
             }
             if (std::ranges::find_if(
-                    existing_users, [&scale_user](const UserProfile& user_profile) {
+                    existing_users, [&scale_user](const UserProfile& user_profile) -> bool {
                         return user_profile.device_user_id == scale_user.device_user_id;
                     }) == existing_users.end()) {
                 result.new_users.push_back(scale_user);
@@ -142,11 +141,11 @@ void SyncWorker::thread_func_full_sync(const std::stop_token& stop_token,
 
 void SyncWorker::thread_func_user_sync(const std::stop_token& stop_token, const UserProfile& user,
                                        const SyncCallback& callback) {
-    execute_sync(stop_token, callback, [&](SyncResult& result) {
+    execute_sync(stop_token, callback, [&](SyncResult& result) -> void {
         if (!user.device_user_id.empty()) {
             auto scale_users = m_device.read_users();
             auto matching_user_it =
-                std::ranges::find_if(scale_users, [&user](const UserProfile& scale_user) {
+                std::ranges::find_if(scale_users, [&user](const UserProfile& scale_user) -> auto {
                     return scale_user.device_user_id == user.device_user_id;
                 });
             if (matching_user_it != scale_users.end() && matching_user_it->name != user.name) {

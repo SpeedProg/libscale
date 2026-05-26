@@ -9,7 +9,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include "libscale/calculator.hpp"
@@ -105,7 +104,7 @@ class FakeDatabaseManager : public IDatabaseManager {
      * @param user_id The ID of the user to delete.
      */
     void delete_user(int user_id) override {
-        std::erase_if(users, [user_id](const auto& user) { return user.id == user_id; });
+        std::erase_if(users, [user_id](const auto& user) -> auto { return user.id == user_id; });
     }
 
     /**
@@ -297,7 +296,7 @@ class MockScaleDevice : public IScaleDevice {
         return connect_result;
     }
     void disconnect() override {}
-    auto is_connected() const -> bool override {
+    [[nodiscard]] auto is_connected() const -> bool override {
         return is_connected_val;
     }
     auto read_users() -> std::vector<UserProfile> override {
@@ -310,13 +309,13 @@ class MockScaleDevice : public IScaleDevice {
     auto signal_device_arrived() -> sigc::signal<void()> override {
         return device_arrived_signal;
     }
-    auto get_device_key() const -> std::string_view override {
+    [[nodiscard]] auto get_device_key() const -> std::string_view override {
         return "usb:222d:0001";
     }
-    auto get_device_name() const -> std::string_view override {
+    [[nodiscard]] auto get_device_name() const -> std::string_view override {
         return "Mock Soehnle Scale";
     }
-    auto get_impedance_pathway() const -> ImpedancePathway override {
+    [[nodiscard]] auto get_impedance_pathway() const -> ImpedancePathway override {
         return ImpedancePathway::FootToFoot;
     }
 };
@@ -324,7 +323,7 @@ class MockScaleDevice : public IScaleDevice {
 
 }  // namespace
 
-TEST(SyncValidationTest, FullSyncSuccessWhenNamesMatch) {
+TEST(SyncValidationTest /*unused*/, FullSyncSuccessWhenNamesMatch /*unused*/) {
     std::mutex mutex_var;
     std::condition_variable cv_var;
     bool callback_called = false;
@@ -349,23 +348,24 @@ TEST(SyncValidationTest, FullSyncSuccessWhenNamesMatch) {
 
     device.users_to_return = {scale_user};
 
-    worker.start_sync(existing_users, [&](SyncResult result) {
-        std::lock_guard<std::mutex> const lock(mutex_var);
-        sync_outcome = std::move(result);
+    worker.start_sync(existing_users, [&](const SyncResult& result) -> void {
+        std::scoped_lock const lock(mutex_var);
+        sync_outcome = result;
         callback_called = true;
         cv_var.notify_one();
     });
 
     std::unique_lock<std::mutex> lock(mutex_var);
     static constexpr int wait_seconds = 2;
-    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds), [&] { return callback_called; });
+    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds),
+                    [&]() -> bool { return callback_called; });
 
     ASSERT_TRUE(callback_called);
     EXPECT_TRUE(sync_outcome.success);
     EXPECT_TRUE(sync_outcome.error_message.empty());
 }
 
-TEST(SyncValidationTest, FullSyncFailsWhenNamesMismatch) {
+TEST(SyncValidationTest /*unused*/, FullSyncFailsWhenNamesMismatch /*unused*/) {
     std::mutex mutex_var;
     std::condition_variable cv_var;
     bool callback_called = false;
@@ -390,16 +390,17 @@ TEST(SyncValidationTest, FullSyncFailsWhenNamesMismatch) {
 
     device.users_to_return = {scale_user};
 
-    worker.start_sync(existing_users, [&](SyncResult result) {
-        std::lock_guard<std::mutex> const lock(mutex_var);
-        sync_outcome = std::move(result);
+    worker.start_sync(existing_users, [&](const SyncResult& result) -> void {
+        std::scoped_lock const lock(mutex_var);
+        sync_outcome = result;
         callback_called = true;
         cv_var.notify_one();
     });
 
     std::unique_lock<std::mutex> lock(mutex_var);
     static constexpr int wait_seconds = 2;
-    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds), [&] { return callback_called; });
+    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds),
+                    [&]() -> bool { return callback_called; });
 
     ASSERT_TRUE(callback_called);
     EXPECT_FALSE(sync_outcome.success);
@@ -408,7 +409,7 @@ TEST(SyncValidationTest, FullSyncFailsWhenNamesMismatch) {
               "re-configure your device.");
 }
 
-TEST(SyncValidationTest, UserSyncSuccessWhenNameMatches) {
+TEST(SyncValidationTest /*unused*/, UserSyncSuccessWhenNameMatches /*unused*/) {
     std::mutex mutex_var;
     std::condition_variable cv_var;
     bool callback_called = false;
@@ -431,23 +432,24 @@ TEST(SyncValidationTest, UserSyncSuccessWhenNameMatches) {
 
     device.users_to_return = {scale_user};
 
-    worker.start_sync_user(local_user, [&](SyncResult result) {
-        std::lock_guard<std::mutex> const lock(mutex_var);
-        sync_outcome = std::move(result);
+    worker.start_sync_user(local_user, [&](const SyncResult& result) -> void {
+        std::scoped_lock const lock(mutex_var);
+        sync_outcome = result;
         callback_called = true;
         cv_var.notify_one();
     });
 
     std::unique_lock<std::mutex> lock(mutex_var);
     static constexpr int wait_seconds = 2;
-    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds), [&] { return callback_called; });
+    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds),
+                    [&]() -> bool { return callback_called; });
 
     ASSERT_TRUE(callback_called);
     EXPECT_TRUE(sync_outcome.success);
     EXPECT_TRUE(sync_outcome.error_message.empty());
 }
 
-TEST(SyncValidationTest, UserSyncFailsWhenNameMismatches) {
+TEST(SyncValidationTest /*unused*/, UserSyncFailsWhenNameMismatches /*unused*/) {
     std::mutex mutex_var;
     std::condition_variable cv_var;
     bool callback_called = false;
@@ -470,16 +472,17 @@ TEST(SyncValidationTest, UserSyncFailsWhenNameMismatches) {
 
     device.users_to_return = {scale_user};
 
-    worker.start_sync_user(local_user, [&](SyncResult result) {
-        std::lock_guard<std::mutex> const lock(mutex_var);
-        sync_outcome = std::move(result);
+    worker.start_sync_user(local_user, [&](const SyncResult& result) -> void {
+        std::scoped_lock const lock(mutex_var);
+        sync_outcome = result;
         callback_called = true;
         cv_var.notify_one();
     });
 
     std::unique_lock<std::mutex> lock(mutex_var);
     static constexpr int wait_seconds = 2;
-    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds), [&] { return callback_called; });
+    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds),
+                    [&]() -> bool { return callback_called; });
 
     ASSERT_TRUE(callback_called);
     EXPECT_FALSE(sync_outcome.success);
@@ -489,7 +492,7 @@ TEST(SyncValidationTest, UserSyncFailsWhenNameMismatches) {
 }
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-TEST(HealthManagerSyncTest, SyncWithEmptyDatabase) {
+TEST(HealthManagerSyncTest /*unused*/, SyncWithEmptyDatabase /*unused*/) {
     std::mutex mutex_var;
     std::condition_variable cv_var;
     bool callback_called = false;
@@ -520,16 +523,17 @@ TEST(HealthManagerSyncTest, SyncWithEmptyDatabase) {
 
     HealthManager manager(database, device);
 
-    manager.start_sync([&](SyncResult result) {
-        std::lock_guard<std::mutex> const lock(mutex_var);
-        sync_outcome = std::move(result);
+    manager.start_sync([&](const SyncResult& result) -> void {
+        std::scoped_lock const lock(mutex_var);
+        sync_outcome = result;
         callback_called = true;
         cv_var.notify_one();
     });
 
     std::unique_lock<std::mutex> lock(mutex_var);
     static constexpr int wait_seconds = 2;
-    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds), [&] { return callback_called; });
+    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds),
+                    [&]() -> bool { return callback_called; });
 
     ASSERT_TRUE(callback_called);
     EXPECT_TRUE(sync_outcome.success);
@@ -537,7 +541,7 @@ TEST(HealthManagerSyncTest, SyncWithEmptyDatabase) {
     // Simulate frontend manually linking the unmapped user to a new profile
     for (const auto& scale_user_profile : sync_outcome.new_users) {
         auto all_local = manager.get_users();
-        bool const is_mapped = std::ranges::any_of(all_local, [&](const UserProfile& local) {
+        bool const is_mapped = std::ranges::any_of(all_local, [&](const UserProfile& local) -> bool {
             return local.device_user_id == scale_user_profile.device_user_id;
         });
         if (!is_mapped) {
@@ -558,7 +562,7 @@ TEST(HealthManagerSyncTest, SyncWithEmptyDatabase) {
     EXPECT_NEAR(measurements[0].weight.value, 65.0, 0.001);
 }
 
-TEST(HealthManagerSyncTest, FirstSyncMapsByName) {
+TEST(HealthManagerSyncTest /*unused*/, FirstSyncMapsByName /*unused*/) {
     std::mutex mutex_var;
     std::condition_variable cv_var;
     bool callback_called = false;
@@ -597,16 +601,17 @@ TEST(HealthManagerSyncTest, FirstSyncMapsByName) {
 
     HealthManager manager(database, device);
 
-    manager.start_sync([&](SyncResult result) {
-        std::lock_guard<std::mutex> const lock(mutex_var);
-        sync_outcome = std::move(result);
+    manager.start_sync([&](const SyncResult& result) -> void {
+        std::scoped_lock const lock(mutex_var);
+        sync_outcome = result;
         callback_called = true;
         cv_var.notify_one();
     });
 
     std::unique_lock<std::mutex> lock(mutex_var);
     static constexpr int wait_seconds = 2;
-    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds), [&] { return callback_called; });
+    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds),
+                    [&]() -> bool { return callback_called; });
 
     ASSERT_TRUE(callback_called);
     EXPECT_TRUE(sync_outcome.success);
@@ -625,7 +630,7 @@ TEST(HealthManagerSyncTest, FirstSyncMapsByName) {
     EXPECT_NEAR(measurements[0].weight.value, 65.0, 0.001);
 }
 
-TEST(HealthManagerSyncTest, ManualAssociation) {
+TEST(HealthManagerSyncTest /*unused*/, ManualAssociation /*unused*/) {
     std::mutex mutex_var;
     std::condition_variable cv_var;
     bool callback_called = false;
@@ -664,16 +669,17 @@ TEST(HealthManagerSyncTest, ManualAssociation) {
 
     HealthManager manager(database, device);
 
-    manager.start_sync([&](SyncResult result) {
-        std::lock_guard<std::mutex> const lock(mutex_var);
-        sync_outcome = std::move(result);
+    manager.start_sync([&](const SyncResult& result) -> void {
+        std::scoped_lock const lock(mutex_var);
+        sync_outcome = result;
         callback_called = true;
         cv_var.notify_one();
     });
 
     std::unique_lock<std::mutex> lock(mutex_var);
     static constexpr int wait_seconds = 2;
-    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds), [&] { return callback_called; });
+    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds),
+                    [&]() -> bool { return callback_called; });
 
     ASSERT_TRUE(callback_called);
     EXPECT_TRUE(sync_outcome.success);
@@ -696,7 +702,7 @@ TEST(HealthManagerSyncTest, ManualAssociation) {
     EXPECT_NEAR(measurements[0].weight.value, 65.0, 0.001);
 }
 
-TEST(HealthManagerSyncTest, RealDbSyncWithEmptyDatabase) {
+TEST(HealthManagerSyncTest /*unused*/, RealDbSyncWithEmptyDatabase /*unused*/) {
     std::mutex mutex_var;
     std::condition_variable cv_var;
     bool callback_called = false;
@@ -734,16 +740,17 @@ TEST(HealthManagerSyncTest, RealDbSyncWithEmptyDatabase) {
 
     HealthManager manager(database, device);
 
-    manager.start_sync([&](SyncResult result) {
-        std::lock_guard<std::mutex> const lock(mutex_var);
-        sync_outcome = std::move(result);
+    manager.start_sync([&](const SyncResult& result) -> void {
+        std::scoped_lock const lock(mutex_var);
+        sync_outcome = result;
         callback_called = true;
         cv_var.notify_one();
     });
 
     std::unique_lock<std::mutex> lock(mutex_var);
     static constexpr int wait_seconds = 2;
-    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds), [&] { return callback_called; });
+    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds),
+                    [&]() -> bool { return callback_called; });
 
     ASSERT_TRUE(callback_called);
     EXPECT_TRUE(sync_outcome.success);
@@ -751,7 +758,7 @@ TEST(HealthManagerSyncTest, RealDbSyncWithEmptyDatabase) {
     // Simulate frontend manually linking the unmapped user to a new profile
     for (const auto& scale_user_profile : sync_outcome.new_users) {
         auto all_local = manager.get_users();
-        bool const is_mapped = std::ranges::any_of(all_local, [&](const UserProfile& local) {
+        bool const is_mapped = std::ranges::any_of(all_local, [&](const UserProfile& local) -> bool {
             return local.device_user_id == scale_user_profile.device_user_id;
         });
         if (!is_mapped) {
@@ -777,7 +784,7 @@ TEST(HealthManagerSyncTest, RealDbSyncWithEmptyDatabase) {
     }
 }
 
-TEST(HealthManagerDeviceTest, GetAndUpdateDeviceAndRecalculate) {
+TEST(HealthManagerDeviceTest /*unused*/, GetAndUpdateDeviceAndRecalculate /*unused*/) {
     FakeDatabaseManager database;
     MockScaleDevice device;
 

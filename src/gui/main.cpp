@@ -26,7 +26,7 @@ auto main(int argc, char* argv[]) -> int {
     // Single-Instance enforcement via App ID
     auto app = Gtk::Application::create("com.comfortselect.dashboard");
 
-    app->signal_activate().connect([&app]() {
+    app->signal_activate().connect([&app]() -> void {
         try {
             std::string const data_dir = Glib::get_user_data_dir() + "/libscale";
             std::filesystem::create_directories(data_dir);
@@ -68,7 +68,7 @@ auto main(int argc, char* argv[]) -> int {
             // Since the USB hotplug event thread runs in the background, we must bridge
             // the event to the main GTK thread via MainWindow's dispatcher.
             device->signal_device_arrived().connect(
-                [window]() { window->notify_device_arrived(); });
+                [window]() -> void { window->notify_device_arrived(); });
         } catch (const std::exception& error) {
             std::cerr << "Fatal error during startup: " << error.what() << '\n';
             std::exit(1);  // NOLINT(concurrency-mt-unsafe): Terminating the process on fatal

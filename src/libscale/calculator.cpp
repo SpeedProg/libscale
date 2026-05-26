@@ -168,13 +168,13 @@ auto BioImpedanceCalculatorV1::calculate_muscle_mass(const CalculationContext& c
     const double offset = get_muscle_offset(ctx.bio.gender, ctx.bio.activity_level);
     const double height_cm_sq = ctx.height_sq * FormulaConfig::cm_per_m * FormulaConfig::cm_per_m;
     const double term1 =
-        (Config::imp50k_coeff / ctx.imp50k.value - Config::imp5k_coeff / ctx.imp5k.value) *
+        ((Config::imp50k_coeff / ctx.imp50k.value) - (Config::imp5k_coeff / ctx.imp5k.value)) *
         height_cm_sq;
 
-    const double muscle =
-        (term1 + Config::weight_coeff * ctx.weight.value -
-         Config::age_coeff * static_cast<double>(ctx.bio.age.value) + Config::base_const + offset) /
-        ctx.weight.value * FormulaConfig::percentage_factor;
+    const double muscle = (term1 + (Config::weight_coeff * ctx.weight.value) -
+                           (Config::age_coeff * static_cast<double>(ctx.bio.age.value)) +
+                           Config::base_const + offset) /
+                          ctx.weight.value * FormulaConfig::percentage_factor;
 
     return units::Percent{muscle};
 }
@@ -194,9 +194,9 @@ auto BioImpedanceCalculatorV1::calculate_water_content(const CalculationContext&
     // hydration levels.
     const double water_offset = get_water_offset(ctx.bio.gender, ctx.bio.activity_level);
     const double height_cm_sq = ctx.height_sq * FormulaConfig::cm_per_m * FormulaConfig::cm_per_m;
-    const double water = (Config::imp50k_coeff * height_cm_sq / ctx.imp50k.value +
-                          Config::weight_coeff * ctx.weight.value -
-                          Config::age_coeff * static_cast<double>(ctx.bio.age.value) +
+    const double water = ((Config::imp50k_coeff * height_cm_sq / ctx.imp50k.value) +
+                          (Config::weight_coeff * ctx.weight.value) -
+                          (Config::age_coeff * static_cast<double>(ctx.bio.age.value)) +
                           Config::base_const + water_offset) /
                          ctx.weight.value * FormulaConfig::percentage_factor;
 
@@ -214,9 +214,9 @@ auto BioImpedanceCalculatorV1::calculate_energy_needs(const CalculationContext& 
     // The resulting BMR is scaled by the physical activity multiplier (representing Total Daily
     // Energy Expenditure - TDEE) to determine daily caloric needs.
     const double activity_mult = get_activity_multiplier(ctx.bio.activity_level);
-    const double bmr =
-        (Config::muscle_weight_coeff * muscle_mass.value * ctx.weight.value + Config::base_const) *
-        activity_mult;
+    const double bmr = ((Config::muscle_weight_coeff * muscle_mass.value * ctx.weight.value) +
+                        Config::base_const) *
+                       activity_mult;
 
     return units::Kcal{static_cast<int>(std::round(bmr))};
 }
@@ -230,7 +230,7 @@ auto BioImpedanceCalculatorV1::calculate_body_fat_v2(const CalculationContext& c
         const auto height_cm = static_cast<double>(ctx.bio.height.value);
         const double base =
             (ctx.bio.gender == Gender::Male) ? Config::male_rfm_base : Config::female_rfm_base;
-        rfm_out = base - Config::rfm_multiplier * (height_cm / waist_cm);
+        rfm_out = base - (Config::rfm_multiplier * (height_cm / waist_cm));
     } else {
         rfm_out = 0.0;
     }

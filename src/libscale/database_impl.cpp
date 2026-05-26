@@ -138,7 +138,7 @@ auto SqliteDatabaseManager::initialize(const std::filesystem::path& db_path) -> 
 
     try {
         auto new_storage = std::make_unique<Storage>(make_sqlite_storage(db_path.string()));
-        new_storage->on_open = [](sqlite3* database) {
+        new_storage->on_open = [](sqlite3* database) -> void {
             sqlite3_exec(database, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr);
         };
         new_storage->sync_schema();
@@ -197,7 +197,7 @@ void SqliteDatabaseManager::delete_user(int user_id) {
     std::unique_lock const lock(m_mutex);
     using namespace sqlite_orm;
     auto& storage = get_storage(m_impl->storage.get());
-    storage.transaction([&]() {
+    storage.transaction([&]() -> bool {
         auto measurements =
             storage.get_all<Measurement>(where(c(&Measurement::user_id) == user_id));
         for (const auto& meas : measurements) {
@@ -233,7 +233,7 @@ void SqliteDatabaseManager::add_measurement(const Measurement& measurement) {
     std::unique_lock const lock(m_mutex);
     using namespace sqlite_orm;
     auto& storage = get_storage(m_impl->storage.get());
-    storage.transaction([&]() {
+    storage.transaction([&]() -> bool {
         int inserted_id = measurement.id;
         if (inserted_id == 0) {
             inserted_id = storage.insert(measurement);
@@ -273,7 +273,7 @@ void SqliteDatabaseManager::delete_measurement(int measurement_id) {
     std::unique_lock const lock(m_mutex);
     using namespace sqlite_orm;
     auto& storage = get_storage(m_impl->storage.get());
-    storage.transaction([&]() {
+    storage.transaction([&]() -> bool {
         storage.remove_all<ScaleRawData>(where(c(&ScaleRawData::measurement_id) == measurement_id));
         storage.remove<Measurement>(measurement_id);
         return true;

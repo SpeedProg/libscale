@@ -60,6 +60,7 @@
 #include "libscale/types.hpp"
 #include "libscale/worker.hpp"
 
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is used for Gtk::ListBox row indexes which are pre-validated.
 namespace libscale {
 
 static constexpr int default_graph_width = 400;
@@ -104,41 +105,37 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
       m_manager(manager),
       m_settings(settings_manager),
       m_builder(builder),
-      m_main_graph(Gtk::make_managed<TrendGraph>()) {
+      m_btn_edit_waist(builder->get_widget<Gtk::Button>("btn_edit_waist")),
+      m_card_bmi(builder->get_widget<Gtk::Button>("card_bmi")),
+      m_card_fat(builder->get_widget<Gtk::Button>("card_fat")),
+      m_card_muscle(builder->get_widget<Gtk::Button>("card_muscle")),
+      m_card_water(builder->get_widget<Gtk::Button>("card_water")),
+      m_card_weight(builder->get_widget<Gtk::Button>("card_weight")),
+      m_graph_container(builder->get_widget<Gtk::Box>("graph_container")),
+      m_profile_activity(builder->get_widget<Gtk::Label>("profile_activity")),
+      m_profile_birthday(builder->get_widget<Gtk::Label>("profile_birthday")),
+      m_profile_device_id(builder->get_widget<Gtk::Label>("profile_device_id")),
+      m_profile_gender(builder->get_widget<Gtk::Label>("profile_gender")),
+      m_profile_height(builder->get_widget<Gtk::Label>("profile_height")),
+      m_profile_name(builder->get_widget<Gtk::Label>("profile_name")),
+      m_profile_slot(builder->get_widget<Gtk::Label>("profile_slot")),
+      m_profile_waist(builder->get_widget<Gtk::Label>("profile_waist")),
+      m_spark_bmi_box(builder->get_widget<Gtk::Box>("spark_bmi")),
+      m_spark_fat_box(builder->get_widget<Gtk::Box>("spark_fat")),
+      m_spark_muscle_box(builder->get_widget<Gtk::Box>("spark_muscle")),
+      m_spark_water_box(builder->get_widget<Gtk::Box>("spark_water")),
+      m_spark_weight_box(builder->get_widget<Gtk::Box>("spark_weight")),
+      m_status_label(builder->get_widget<Gtk::Label>("status_label")),
+      m_sync_button(builder->get_widget<Gtk::Button>("sync_button")),
+      m_user_list(builder->get_widget<Gtk::ListBox>("user_list")),
+      m_val_bmi(builder->get_widget<Gtk::Label>("val_bmi")),
+      m_val_fat(builder->get_widget<Gtk::Label>("val_fat")),
+      m_val_muscle(builder->get_widget<Gtk::Label>("val_muscle")),
+      m_val_water(builder->get_widget<Gtk::Label>("val_water")),
+      m_val_weight(builder->get_widget<Gtk::Label>("val_weight")),
+      m_main_graph(Gtk::make_managed<TrendGraph>()),
+      m_history_list(builder->get_widget<Gtk::ListView>("history_list")) {
     // Get widgets from builder
-    m_sync_button = builder->get_widget<Gtk::Button>("sync_button");
-    m_status_label = builder->get_widget<Gtk::Label>("status_label");
-    m_user_list = builder->get_widget<Gtk::ListBox>("user_list");
-    m_graph_container = builder->get_widget<Gtk::Box>("graph_container");
-    m_profile_name = builder->get_widget<Gtk::Label>("profile_name");
-    m_profile_height = builder->get_widget<Gtk::Label>("profile_height");
-    m_profile_gender = builder->get_widget<Gtk::Label>("profile_gender");
-    m_profile_activity = builder->get_widget<Gtk::Label>("profile_activity");
-    m_profile_birthday = builder->get_widget<Gtk::Label>("profile_birthday");
-    m_profile_slot = builder->get_widget<Gtk::Label>("profile_slot");
-    m_profile_device_id = builder->get_widget<Gtk::Label>("profile_device_id");
-    m_profile_waist = builder->get_widget<Gtk::Label>("profile_waist");
-    m_btn_edit_waist = builder->get_widget<Gtk::Button>("btn_edit_waist");
-
-    m_card_weight = builder->get_widget<Gtk::Button>("card_weight");
-    m_card_bmi = builder->get_widget<Gtk::Button>("card_bmi");
-    m_card_fat = builder->get_widget<Gtk::Button>("card_fat");
-    m_card_water = builder->get_widget<Gtk::Button>("card_water");
-    m_card_muscle = builder->get_widget<Gtk::Button>("card_muscle");
-
-    m_val_weight = builder->get_widget<Gtk::Label>("val_weight");
-    m_val_bmi = builder->get_widget<Gtk::Label>("val_bmi");
-    m_val_fat = builder->get_widget<Gtk::Label>("val_fat");
-    m_val_water = builder->get_widget<Gtk::Label>("val_water");
-    m_val_muscle = builder->get_widget<Gtk::Label>("val_muscle");
-
-    m_spark_weight_box = builder->get_widget<Gtk::Box>("spark_weight");
-    m_spark_bmi_box = builder->get_widget<Gtk::Box>("spark_bmi");
-    m_spark_fat_box = builder->get_widget<Gtk::Box>("spark_fat");
-    m_spark_water_box = builder->get_widget<Gtk::Box>("spark_water");
-    m_spark_muscle_box = builder->get_widget<Gtk::Box>("spark_muscle");
-
-    m_history_list = builder->get_widget<Gtk::ListView>("history_list");
 
     m_main_graph->set_expand(true);
     m_main_graph->set_size_request(default_graph_width, default_graph_height);
@@ -146,7 +143,7 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
         m_graph_container->append(*m_main_graph);
     }
 
-    auto create_spark = [&](Gtk::Box* container, MetricType type) {
+    auto create_spark = [&](Gtk::Box* container, MetricType type) -> auto {
         auto* spark = Gtk::make_managed<TrendGraph>();
         spark->set_compact_mode(true);
         spark->set_metric(type);
@@ -167,17 +164,21 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     // Signals
     m_sync_button->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_sync_clicked));
     m_user_list->signal_row_selected().connect(sigc::mem_fun(*this, &MainWindow::on_user_selected));
-    m_btn_edit_waist->signal_clicked().connect([this]() {
+    m_btn_edit_waist->signal_clicked().connect([this]() -> void {
         if (m_current_user) {
             prompt_waist_change(*m_current_user);
         }
     });
 
-    m_card_weight->signal_clicked().connect([this]() { on_metric_clicked(MetricType::Weight); });
-    m_card_bmi->signal_clicked().connect([this]() { on_metric_clicked(MetricType::BMI); });
-    m_card_fat->signal_clicked().connect([this]() { on_metric_clicked(MetricType::BodyFat); });
-    m_card_water->signal_clicked().connect([this]() { on_metric_clicked(MetricType::Water); });
-    m_card_muscle->signal_clicked().connect([this]() { on_metric_clicked(MetricType::Muscle); });
+    m_card_weight->signal_clicked().connect(
+        [this]() -> void { on_metric_clicked(MetricType::Weight); });
+    m_card_bmi->signal_clicked().connect([this]() -> void { on_metric_clicked(MetricType::BMI); });
+    m_card_fat->signal_clicked().connect(
+        [this]() -> void { on_metric_clicked(MetricType::BodyFat); });
+    m_card_water->signal_clicked().connect(
+        [this]() -> void { on_metric_clicked(MetricType::Water); });
+    m_card_muscle->signal_clicked().connect(
+        [this]() -> void { on_metric_clicked(MetricType::Muscle); });
 
     m_range_30d = builder->get_widget<Gtk::Button>("range_30d");
     m_range_90d = builder->get_widget<Gtk::Button>("range_90d");
@@ -188,21 +189,21 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     m_range_start_label = builder->get_widget<Gtk::Label>("range_start_label");
     m_range_end_label = builder->get_widget<Gtk::Label>("range_end_label");
     m_formula_v2_toggle = builder->get_widget<Gtk::CheckButton>("formula_v2_toggle");
-    m_formula_v2_toggle->signal_toggled().connect([this]() { on_view_model_changed(); });
+    m_formula_v2_toggle->signal_toggled().connect([this]() -> void { on_view_model_changed(); });
 
-    m_range_30d->signal_clicked().connect([this]() {
+    m_range_30d->signal_clicked().connect([this]() -> void {
         m_active_preset = range_preset_30d;
         m_view_model.set_range_preset(range_preset_30d);
     });
-    m_range_90d->signal_clicked().connect([this]() {
+    m_range_90d->signal_clicked().connect([this]() -> void {
         m_active_preset = range_preset_90d;
         m_view_model.set_range_preset(range_preset_90d);
     });
-    m_range_1y->signal_clicked().connect([this]() {
+    m_range_1y->signal_clicked().connect([this]() -> void {
         m_active_preset = range_preset_1y;
         m_view_model.set_range_preset(range_preset_1y);
     });
-    m_range_all->signal_clicked().connect([this]() {
+    m_range_all->signal_clicked().connect([this]() -> void {
         m_active_preset = 0;
         m_view_model.set_range_preset(0);
     });
@@ -219,7 +220,7 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
             sigc::mem_fun(*this, &MainWindow::on_export_json_clicked));
     }
 
-    auto on_slider_changed = [this]() {
+    auto on_slider_changed = [this]() -> void {
         if (!m_updating_from_model) {
             m_active_preset = -1;
             m_view_model.set_range_percentages(m_range_start_slider->get_value(),
@@ -233,7 +234,7 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
         sigc::mem_fun(*this, &MainWindow::on_view_model_changed));
 
     m_hotplug_dispatcher.connect(sigc::mem_fun(*this, &MainWindow::on_device_arrived));
-    m_sync_complete_dispatcher.connect([this]() { on_sync_complete(m_last_sync_result); });
+    m_sync_complete_dispatcher.connect([this]() -> void { on_sync_complete(m_last_sync_result); });
 
     m_unit_metric_radio = builder->get_widget<Gtk::CheckButton>("unit_metric_radio");
     m_unit_imperial_radio = builder->get_widget<Gtk::CheckButton>("unit_imperial_radio");
@@ -252,7 +253,7 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
         m_unit_metric_radio->set_active(true);
     }
 
-    auto on_unit_changed = [this]() {
+    auto on_unit_changed = [this]() -> void {
         UnitSystem const units_val = m_unit_imperial_radio->get_active()
                                          ? UnitSystem::Imperial
                                          : UnitSystem::Metric;  // NOLINT(misc-include-cleaner)
@@ -351,7 +352,7 @@ auto MainWindow::create(HealthManager& manager, ISettingsManager& settings_manag
 void MainWindow::on_view_model_changed() {
     const auto& filtered = m_view_model.get_filtered_data();
 
-    auto update_label = [](Gtk::Label* label, double val, const std::string& unit) {
+    auto update_label = [](Gtk::Label* label, double val, const std::string& unit) -> void {
         label->set_text(std::format("{:.1f}{}", val, unit));
     };
 
@@ -442,8 +443,8 @@ void MainWindow::update_range_button_selection(int days) {
 void MainWindow::on_sync_clicked() {
     m_status_label->set_text("Syncing...");
     m_sync_button->set_sensitive(false);
-    m_manager.start_sync([this](SyncResult result) {
-        m_last_sync_result = std::move(result);
+    m_manager.start_sync([this](const SyncResult& result) -> void {
+        m_last_sync_result = result;
         m_sync_complete_dispatcher.emit();
     });
 }
@@ -458,7 +459,7 @@ void MainWindow::on_sync_complete(const SyncResult& result) {
         const auto all_local_users = m_manager.get_users();
         for (const auto& scale_user : result.new_users) {
             bool const is_mapped =
-                std::ranges::any_of(all_local_users, [&](const UserProfile& local_user) {
+                std::ranges::any_of(all_local_users, [&](const UserProfile& local_user) -> bool {
                     return local_user.device_user_id == scale_user.device_user_id;
                 });
             if (!is_mapped) {
@@ -659,7 +660,7 @@ auto MainWindow::find_current_user_iterator() const -> std::vector<UserProfile>:
     if (!m_current_user) {
         return m_users.end();
     }
-    return std::ranges::find_if(m_users, [this](const UserProfile& user_profile) {
+    return std::ranges::find_if(m_users, [this](const UserProfile& user_profile) -> bool {
         return user_profile.id == m_current_user->id;
     });
 }
@@ -685,7 +686,7 @@ void MainWindow::on_export_csv_clicked() {
         m_csv_export_dialog->add_filter(filter_csv);
         m_csv_export_dialog->set_current_name("export.csv");
 
-        m_csv_export_dialog->signal_response().connect([this](int response_id) {
+        m_csv_export_dialog->signal_response().connect([this](int response_id) -> void {
             if (response_id == Gtk::ResponseType::ACCEPT) {
                 auto file = m_csv_export_dialog->get_file();
                 if (file) {
@@ -699,7 +700,7 @@ void MainWindow::on_export_csv_clicked() {
                             throw std::runtime_error("Could not open file for writing.");
                         }
                         const auto& data = m_view_model.get_filtered_data();
-                        out << DataExporter::to_csv(data);
+                        out << libscale::DataExporter::to_csv(data);
                         m_status_label->set_text("Exported CSV to " + path);
                     } catch (const std::exception& e) {
                         show_error_dialog("Export Failed",
@@ -734,7 +735,7 @@ void MainWindow::on_export_json_clicked() {
         m_json_export_dialog->add_filter(filter_json);
         m_json_export_dialog->set_current_name("export.json");
 
-        m_json_export_dialog->signal_response().connect([this](int response_id) {
+        m_json_export_dialog->signal_response().connect([this](int response_id) -> void {
             if (response_id == Gtk::ResponseType::ACCEPT) {
                 auto file = m_json_export_dialog->get_file();
                 if (file) {
@@ -748,7 +749,7 @@ void MainWindow::on_export_json_clicked() {
                             throw std::runtime_error("Could not open file for writing.");
                         }
                         const auto& data = m_view_model.get_filtered_data();
-                        out << DataExporter::to_json(data);
+                        out << libscale::DataExporter::to_json(data);
                         m_status_label->set_text("Exported JSON to " + path);
                     } catch (const std::exception& e) {
                         show_error_dialog("Export Failed",
@@ -768,7 +769,7 @@ void MainWindow::show_info_dialog(
     m_info_dialog = std::make_unique<Gtk::MessageDialog>(
         *this, title, false, Gtk::MessageType::INFO, Gtk::ButtonsType::OK, true);
     m_info_dialog->set_secondary_text(message);
-    m_info_dialog->signal_response().connect([this](int) { m_info_dialog->hide(); });
+    m_info_dialog->signal_response().connect([this](int) -> void { m_info_dialog->hide(); });
     m_info_dialog->show();
 }
 
@@ -778,7 +779,7 @@ void MainWindow::show_error_dialog(
     m_error_dialog = std::make_unique<Gtk::MessageDialog>(
         *this, title, false, Gtk::MessageType::ERROR, Gtk::ButtonsType::OK, true);
     m_error_dialog->set_secondary_text(message);
-    m_error_dialog->signal_response().connect([this](int) { m_error_dialog->hide(); });
+    m_error_dialog->signal_response().connect([this](int) -> void { m_error_dialog->hide(); });
     m_error_dialog->show();
 }
 
@@ -851,7 +852,7 @@ void MainWindow::prompt_next_missing_waist() {
     dialog->add_button("Save", Gtk::ResponseType::ACCEPT);
 
     dialog->signal_response().connect(
-        [this, dialog, user, spin_button, units](int response_id) mutable {
+        [this, dialog, user, spin_button, units](int response_id) mutable -> void {
             if (response_id == Gtk::ResponseType::ACCEPT) {
                 double val = spin_button->get_value();
                 if (units == UnitSystem::Imperial) {
@@ -861,7 +862,7 @@ void MainWindow::prompt_next_missing_waist() {
                 m_manager.update_user(user);
                 refresh_user_list();
 
-                prompt_recalculate_history(user, [this]() { prompt_next_missing_waist(); });
+                prompt_recalculate_history(user, [this]() -> void { prompt_next_missing_waist(); });
             } else {
                 prompt_next_missing_waist();
             }
@@ -881,7 +882,7 @@ void MainWindow::prompt_recalculate_history(const UserProfile& user,
                     "will be updated. If No, this change will only affect future measurements.",
                     user.name));
 
-    dialog->signal_response().connect([this, dialog, user, on_finished](int response_id) {
+    dialog->signal_response().connect([this, dialog, user, on_finished](int response_id) -> void {
         if (response_id == Gtk::ResponseType::YES) {
             recalculate_user_history(user.id);
         }
@@ -954,7 +955,7 @@ void MainWindow::prompt_waist_change(const UserProfile& user) {
     dialog->add_button("Save", Gtk::ResponseType::ACCEPT);
 
     dialog->signal_response().connect(
-        [this, dialog, user_copy = user, spin_button, units](int response_id) mutable {
+        [this, dialog, user_copy = user, spin_button, units](int response_id) mutable -> void {
             if (response_id == Gtk::ResponseType::ACCEPT) {
                 double val = spin_button->get_value();
                 if (units == UnitSystem::Imperial) {
@@ -986,7 +987,7 @@ void MainWindow::prompt_next_user_reconciliation() {
         return;
     }
 
-    UserProfile scale_user = m_pending_reconciliation_users.front();
+    UserProfile const scale_user = m_pending_reconciliation_users.front();
     m_pending_reconciliation_users.erase(m_pending_reconciliation_users.begin());
 
     auto dialog = std::make_unique<Gtk::Dialog>();
@@ -1025,7 +1026,7 @@ void MainWindow::prompt_next_user_reconciliation() {
     dialog_raw->add_button("Link", Gtk::ResponseType::ACCEPT);
 
     dialog_raw->signal_response().connect(
-        [this, dialog_raw, scale_user, dropdown](int response_id) mutable {
+        [this, dialog_raw, scale_user, dropdown](int response_id) mutable -> void {
             if (response_id == Gtk::ResponseType::ACCEPT) {
                 std::string const selected_id_str = dropdown->get_active_id();
                 std::optional<int> user_id = std::nullopt;
@@ -1035,7 +1036,7 @@ void MainWindow::prompt_next_user_reconciliation() {
                 m_manager.associate_scale_user(scale_user, user_id, m_last_sync_result);
             }
             dialog_raw->hide();
-            Glib::signal_idle().connect_once([this]() {
+            Glib::signal_idle().connect_once([this]() -> void {
                 m_active_dialog.reset();
                 prompt_next_user_reconciliation();
             });
@@ -1058,9 +1059,10 @@ void MainWindow::refresh_device_list() {
     if (!m_devices.empty()) {
         int index_to_select = 0;
         if (m_selected_device) {
-            auto found_device = std::ranges::find_if(m_devices, [this](const Device& device_item) {
-                return device_item.id == m_selected_device->id;
-            });
+            auto found_device =
+                std::ranges::find_if(m_devices, [this](const Device& device_item) -> bool {
+                    return device_item.id == m_selected_device->id;
+                });
             if (found_device != m_devices.end()) {
                 index_to_select = static_cast<int>(std::distance(m_devices.begin(), found_device));
             }
@@ -1106,8 +1108,8 @@ void MainWindow::on_device_name_changed() {
         m_device_save_button->set_sensitive(false);
         return;
     }
-    std::string name = m_device_name_entry->get_text();
-    bool const is_empty_or_whitespace = std::ranges::all_of(name, [](char character_item) {
+    std::string const name = m_device_name_entry->get_text();
+    bool const is_empty_or_whitespace = std::ranges::all_of(name, [](char character_item) -> bool {
         return character_item == ' ' || character_item == '\t' || character_item == '\n' ||
                character_item == '\v' || character_item == '\f' || character_item == '\r';
     });
@@ -1119,8 +1121,8 @@ void MainWindow::on_device_save_clicked() {
         return;
     }
 
-    std::string name = m_device_name_entry->get_text();
-    bool const is_empty_or_whitespace = std::ranges::all_of(name, [](char character_item) {
+    std::string const name = m_device_name_entry->get_text();
+    bool const is_empty_or_whitespace = std::ranges::all_of(name, [](char character_item) -> bool {
         return character_item == ' ' || character_item == '\t' || character_item == '\n' ||
                character_item == '\v' || character_item == '\f' || character_item == '\r';
     });
@@ -1157,7 +1159,7 @@ void MainWindow::on_device_save_clicked() {
                         "who have measurements recorded from this device?",
                         updated_device.name));
 
-        dialog->signal_response().connect([this, dialog, device_id](int response_id) {
+        dialog->signal_response().connect([this, dialog, device_id](int response_id) -> void {
             if (response_id == Gtk::ResponseType::YES) {
                 m_manager.recalculate_device_measurements(device_id);
                 if (m_current_user) {
@@ -1176,3 +1178,4 @@ void MainWindow::on_device_save_clicked() {
 }
 
 }  // namespace libscale
+// NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)

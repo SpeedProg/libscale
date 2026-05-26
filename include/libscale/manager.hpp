@@ -35,7 +35,7 @@ class HealthManager {
     /**
      * @brief Destructor. Cleans up background threads and sync workers.
      */
-    ~HealthManager();
+    ~HealthManager() = default;
 
     HealthManager(const HealthManager&) = delete;
     auto operator=(const HealthManager&) -> HealthManager& = delete;

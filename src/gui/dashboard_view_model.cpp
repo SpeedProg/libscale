@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <iterator>
 #include <vector>
+
 #include "libscale/types.hpp"
 
 namespace libscale {
@@ -37,8 +38,8 @@ void DashboardViewModel::set_range_preset(int days) {
         const auto& latest_date = m_all_data.back().date;
         auto const cutoff = std::chrono::sys_days{latest_date} - std::chrono::days{days};
 
-        auto const cutoff_it =
-            std::ranges::lower_bound(m_all_data, cutoff, {}, [](const Measurement& measurement) {
+        auto const cutoff_it = std::ranges::lower_bound(
+            m_all_data, cutoff, {}, [](const Measurement& measurement) -> std::chrono::sys_days {
                 return std::chrono::sys_days{measurement.date};
             });
         auto const start_idx = static_cast<size_t>(std::distance(m_all_data.begin(), cutoff_it));

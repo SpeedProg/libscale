@@ -1,4 +1,11 @@
-#if defined(_WIN32)
+#include <format>
+#include <span>
+#include <stdexcept>
+#include <string_view>
+#include <vector>
+
+#include "libscale/units.hpp"
+#ifdef _WIN32
 #include <winsock2.h>  // NOLINT(misc-include-cleaner): Conditionally compiled header providing timeval struct on Windows.
 #else
 #include <sys/time.h>  // NOLINT(misc-include-cleaner): Conditionally compiled header providing timeval struct on POSIX.
@@ -11,18 +18,14 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <format>
-#include <span>
-#include <stdexcept>
 #include <stop_token>
 #include <string>
-#include <string_view>
 #include <thread>
-#include <vector>
 
 #include "libscale/device.hpp"
 #include "libscale/types.hpp"
 
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is safe since packet offsets are bounds-checked in loops.
 namespace libscale {
 
 namespace {
@@ -97,7 +100,7 @@ UsbScaleDevice::UsbScaleDevice() {
         }
 
         // Start polling thread with C++20 stop_token
-        m_event_thread = std::jthread([this](const std::stop_token& stop_token) {
+        m_event_thread = std::jthread([this](const std::stop_token& stop_token) -> void {
             while (!stop_token.stop_requested()) {
                 // timeval struct definition is provided by conditionally compiled platform headers.
                 // NOLINTNEXTLINE(misc-include-cleaner)
@@ -217,7 +220,7 @@ auto UsbScaleDevice::parse_users(std::span<const uint8_t> data) -> std::vector<U
         user.name = std::string(reinterpret_cast<const char*>(&data[i + off_user_name]), name_len);
         // Robust trimming
         user.name.erase(std::ranges::find_if(user.name.rbegin(), user.name.rend(),
-                                             [](unsigned char chr) {
+                                             [](unsigned char chr) -> bool {
                                                  return (std::isspace(chr) == 0) && chr != '\0';
                                              })
                             .base(),
@@ -322,3 +325,4 @@ auto UsbScaleDevice::get_impedance_pathway() const -> ImpedancePathway {
 }
 
 }  // namespace libscale
+// NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)

@@ -27,8 +27,6 @@ HealthManager::HealthManager(IDatabaseManager& database, IScaleDevice& device,
                               : std::make_unique<BioImpedanceCalculatorV1>()),
       m_worker(std::make_unique<SyncWorker>(device, *m_calculator)) {}
 
-HealthManager::~HealthManager() = default;
-
 auto HealthManager::get_users() const -> std::vector<UserProfile> {
     auto users = m_database.get_users();
     std::string_view const dev_key = m_device.get_device_key();
@@ -67,7 +65,8 @@ void HealthManager::update_user(const UserProfile& user) {
 void HealthManager::recalculate_measurements(int user_id) {
     auto users = get_users();
     auto user_iterator = std::ranges::find_if(
-        users, [user_id](const UserProfile& user_profile) { return user_profile.id == user_id; });
+        users,
+        [user_id](const UserProfile& user_profile) -> bool { return user_profile.id == user_id; });
     if (user_iterator == users.end()) {
         return;
     }
@@ -137,8 +136,8 @@ void HealthManager::start_sync(std::function<void(SyncResult)> callback) {
 
     // Safety: Capture dependencies carefully. Since m_worker is joined in destructor,
     // 'this' is safe as long as the worker thread is running.
-    auto wrapped_callback = [this, device_id,
-                             callback_moved = std::move(callback)](const SyncResult& result) {
+    auto wrapped_callback =
+        [this, device_id, callback_moved = std::move(callback)](const SyncResult& result) -> void {
         if (result.success) {
             process_sync_results(device_id, result);
         }
@@ -158,13 +157,13 @@ void HealthManager::process_sync_results(int device_id, const SyncResult& result
     for (const auto& user : result.new_users) {
         auto it_existing = std::ranges::find_if(
             all_existing_users,
-            [&](const UserProfile& local_user) { return local_user.name == user.name; });
+            [&](const UserProfile& local_user) -> bool { return local_user.name == user.name; });
 
         if (it_existing != all_existing_users.end()) {
             int const user_id = it_existing->id;
             const auto existing_mappings = m_database.get_device_user_mappings(user_id);
             bool const already_mapped = std::ranges::any_of(
-                existing_mappings, [&](const DeviceUserMapping& device_mapping) {
+                existing_mappings, [&](const DeviceUserMapping& device_mapping) -> bool {
                     return device_mapping.device_id == device_id;
                 });
             if (!already_mapped) {
@@ -203,7 +202,7 @@ void HealthManager::associate_scale_user(const UserProfile& scale_user, std::opt
                                          const SyncResult& result) {
     std::string_view const dev_key = m_device.get_device_key();
     auto dev_opt = m_database.get_device_by_key(std::string{dev_key});
-    const int device_id = [&]() {
+    const int device_id = [&]() -> int {
         if (!dev_opt) {
             Device new_dev;
             new_dev.name = m_device.get_device_name();
@@ -252,7 +251,7 @@ void HealthManager::recalculate_device_measurements(int device_id) {
     for (const auto& user : users) {
         auto measurements = m_database.get_measurements(user.id);
         bool const has_device_measurement =
-            std::ranges::any_of(measurements, [device_id](const Measurement& measurement) {
+            std::ranges::any_of(measurements, [device_id](const Measurement& measurement) -> bool {
                 return measurement.device_id && *measurement.device_id == device_id;
             });
         if (has_device_measurement) {

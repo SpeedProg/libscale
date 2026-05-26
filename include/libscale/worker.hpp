@@ -96,7 +96,7 @@ class SyncWorker {
      * @param user The specific user profile to synchronize.
      * @param callback Callback executed on the background thread upon sync completion.
      */
-    void start_sync_user(UserProfile user, SyncCallback callback);
+    void start_sync_user(const UserProfile& user, SyncCallback callback);
 
     /**
      * @brief Cooperatively requests any active background synchronization threads to stop

@@ -24,7 +24,7 @@ static constexpr int col_width_muscle = 60;
 HistoryRow::HistoryRow() : Gtk::Box(Gtk::Orientation::HORIZONTAL, list_item_spacing) {
     set_margin(list_item_margin);
 
-    auto create_label = [this](int width) {
+    auto create_label = [this](int width) -> Gtk::Label* {
         auto* label = Gtk::make_managed<Gtk::Label>();
         label->set_size_request(width, -1);
         label->set_xalign(0.0);
