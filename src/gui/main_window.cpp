@@ -136,50 +136,6 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
       m_main_graph(Gtk::make_managed<TrendGraph>()),
       m_history_list(builder->get_widget<Gtk::ListView>("history_list")) {
     // Get widgets from builder
-
-    m_main_graph->set_expand(true);
-    m_main_graph->set_size_request(default_graph_width, default_graph_height);
-    if (m_graph_container != nullptr) {
-        m_graph_container->append(*m_main_graph);
-    }
-
-    auto create_spark = [&](Gtk::Box* container, MetricType type) -> auto {
-        auto* spark = Gtk::make_managed<TrendGraph>();
-        spark->set_compact_mode(true);
-        spark->set_metric(type);
-        spark->set_expand(true);
-        if (container != nullptr) {
-            container->set_can_target(false);
-            container->append(*spark);
-        }
-        return spark;
-    };
-
-    m_spark_weight = create_spark(m_spark_weight_box, MetricType::Weight);
-    m_spark_bmi = create_spark(m_spark_bmi_box, MetricType::BMI);
-    m_spark_fat = create_spark(m_spark_fat_box, MetricType::BodyFat);
-    m_spark_water = create_spark(m_spark_water_box, MetricType::Water);
-    m_spark_muscle = create_spark(m_spark_muscle_box, MetricType::Muscle);
-
-    // Signals
-    m_sync_button->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_sync_clicked));
-    m_user_list->signal_row_selected().connect(sigc::mem_fun(*this, &MainWindow::on_user_selected));
-    m_btn_edit_waist->signal_clicked().connect([this]() -> void {
-        if (m_current_user) {
-            prompt_waist_change(*m_current_user);
-        }
-    });
-
-    m_card_weight->signal_clicked().connect(
-        [this]() -> void { on_metric_clicked(MetricType::Weight); });
-    m_card_bmi->signal_clicked().connect([this]() -> void { on_metric_clicked(MetricType::BMI); });
-    m_card_fat->signal_clicked().connect(
-        [this]() -> void { on_metric_clicked(MetricType::BodyFat); });
-    m_card_water->signal_clicked().connect(
-        [this]() -> void { on_metric_clicked(MetricType::Water); });
-    m_card_muscle->signal_clicked().connect(
-        [this]() -> void { on_metric_clicked(MetricType::Muscle); });
-
     m_range_30d = builder->get_widget<Gtk::Button>("range_30d");
     m_range_90d = builder->get_widget<Gtk::Button>("range_90d");
     m_range_1y = builder->get_widget<Gtk::Button>("range_1y");
@@ -189,67 +145,25 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
     m_range_start_label = builder->get_widget<Gtk::Label>("range_start_label");
     m_range_end_label = builder->get_widget<Gtk::Label>("range_end_label");
     m_formula_v2_toggle = builder->get_widget<Gtk::CheckButton>("formula_v2_toggle");
-    m_formula_v2_toggle->signal_toggled().connect([this]() -> void { on_view_model_changed(); });
-
     m_multi_metric_toggle = builder->get_widget<Gtk::CheckButton>("multi_metric_toggle");
-    m_multi_metric_toggle->signal_toggled().connect([this]() -> void {
-        if (!m_multi_metric_toggle->get_active()) {
-            if (m_selected_metrics.empty()) {
-                m_selected_metrics = {MetricType::Weight};
-            } else {
-                m_selected_metrics = {m_selected_metrics.front()};
-            }
-        }
-        on_view_model_changed();
-    });
-
-    m_range_30d->signal_clicked().connect([this]() -> void {
-        m_active_preset = range_preset_30d;
-        m_view_model.set_range_preset(range_preset_30d);
-    });
-    m_range_90d->signal_clicked().connect([this]() -> void {
-        m_active_preset = range_preset_90d;
-        m_view_model.set_range_preset(range_preset_90d);
-    });
-    m_range_1y->signal_clicked().connect([this]() -> void {
-        m_active_preset = range_preset_1y;
-        m_view_model.set_range_preset(range_preset_1y);
-    });
-    m_range_all->signal_clicked().connect([this]() -> void {
-        m_active_preset = 0;
-        m_view_model.set_range_preset(0);
-    });
-
     m_export_csv_button = builder->get_widget<Gtk::Button>("export_csv_button");
     m_export_json_button = builder->get_widget<Gtk::Button>("export_json_button");
-
-    if (m_export_csv_button != nullptr) {
-        m_export_csv_button->signal_clicked().connect(
-            sigc::mem_fun(*this, &MainWindow::on_export_csv_clicked));
-    }
-    if (m_export_json_button != nullptr) {
-        m_export_json_button->signal_clicked().connect(
-            sigc::mem_fun(*this, &MainWindow::on_export_json_clicked));
-    }
-
-    auto on_slider_changed = [this]() -> void {
-        if (!m_updating_from_model) {
-            m_active_preset = -1;
-            m_view_model.set_range_percentages(m_range_start_slider->get_value(),
-                                               m_range_end_slider->get_value());
-        }
-    };
-    m_range_start_slider->signal_value_changed().connect(on_slider_changed);
-    m_range_end_slider->signal_value_changed().connect(on_slider_changed);
-
-    m_view_model.signal_data_changed().connect(
-        sigc::mem_fun(*this, &MainWindow::on_view_model_changed));
-
-    m_hotplug_dispatcher.connect(sigc::mem_fun(*this, &MainWindow::on_device_arrived));
-    m_sync_complete_dispatcher.connect([this]() -> void { on_sync_complete(m_last_sync_result); });
-
     m_unit_metric_radio = builder->get_widget<Gtk::CheckButton>("unit_metric_radio");
     m_unit_imperial_radio = builder->get_widget<Gtk::CheckButton>("unit_imperial_radio");
+    m_devices_list = builder->get_widget<Gtk::ListBox>("devices_list");
+    m_device_details_box = builder->get_widget<Gtk::Box>("device_details_box");
+    m_device_name_entry = builder->get_widget<Gtk::Entry>("device_name_entry");
+    m_device_key_label = builder->get_widget<Gtk::Label>("device_key_label");
+    m_device_pathway_combo = builder->get_widget<Gtk::ComboBoxText>("device_pathway_combo");
+    m_device_save_button = builder->get_widget<Gtk::Button>("device_save_button");
+
+    m_device_pathway_combo->append("FootToFoot", "Foot to Foot");
+    m_device_pathway_combo->append("HandToFoot", "Hand to Foot");
+    m_device_details_box->set_sensitive(false);
+    m_device_save_button->set_sensitive(false);
+
+    init_sparklines();
+    init_event_handlers();
 
     UnitSystem const units = m_settings.get_unit_system();  // NOLINT(misc-include-cleaner)
     m_main_graph->set_unit_system(units);
@@ -265,51 +179,8 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
         m_unit_metric_radio->set_active(true);
     }
 
-    auto on_unit_changed = [this]() -> void {
-        UnitSystem const units_val = m_unit_imperial_radio->get_active()
-                                         ? UnitSystem::Imperial
-                                         : UnitSystem::Metric;  // NOLINT(misc-include-cleaner)
-        if (units_val != m_settings.get_unit_system()) {
-            m_settings.set_unit_system(units_val);
-            m_settings.save();
-
-            m_main_graph->set_unit_system(units_val);
-            m_spark_weight->set_unit_system(units_val);
-            m_spark_bmi->set_unit_system(units_val);
-            m_spark_fat->set_unit_system(units_val);
-            m_spark_water->set_unit_system(units_val);
-            m_spark_muscle->set_unit_system(units_val);
-
-            on_view_model_changed();
-            update_profile_view();
-        }
-    };
-    m_unit_metric_radio->signal_toggled().connect(on_unit_changed);
-    m_unit_imperial_radio->signal_toggled().connect(on_unit_changed);
-
     setup_history_list();
     refresh_user_list();
-
-    m_devices_list = builder->get_widget<Gtk::ListBox>("devices_list");
-    m_device_details_box = builder->get_widget<Gtk::Box>("device_details_box");
-    m_device_name_entry = builder->get_widget<Gtk::Entry>("device_name_entry");
-    m_device_key_label = builder->get_widget<Gtk::Label>("device_key_label");
-    m_device_pathway_combo = builder->get_widget<Gtk::ComboBoxText>("device_pathway_combo");
-    m_device_save_button = builder->get_widget<Gtk::Button>("device_save_button");
-
-    m_device_pathway_combo->append("FootToFoot", "Foot to Foot");
-    m_device_pathway_combo->append("HandToFoot", "Hand to Foot");
-
-    m_devices_list->signal_row_selected().connect(
-        sigc::mem_fun(*this, &MainWindow::on_device_selected));
-    m_device_save_button->signal_clicked().connect(
-        sigc::mem_fun(*this, &MainWindow::on_device_save_clicked));
-    m_device_name_entry->signal_changed().connect(
-        sigc::mem_fun(*this, &MainWindow::on_device_name_changed));
-
-    m_device_details_box->set_sensitive(false);
-    m_device_save_button->set_sensitive(false);
-
     refresh_device_list();
 
     set_name("main_window");
@@ -326,7 +197,7 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
         try {
             css_provider->load_from_path(css_path);
             Gtk::StyleContext::add_provider_for_display(Gdk::Display::get_default(), css_provider,
-                                                        GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+                                                         GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
         } catch (const std::exception& e) {
             std::cerr << "Failed to load CSS: " << e.what() << "\n";
         }
@@ -1194,6 +1065,136 @@ void MainWindow::on_device_save_clicked() {
             update_profile_view();
         }
     }
+}
+
+void MainWindow::init_sparklines() {
+    m_main_graph->set_expand(true);
+    m_main_graph->set_size_request(default_graph_width, default_graph_height);
+    if (m_graph_container != nullptr) {
+        m_graph_container->append(*m_main_graph);
+    }
+
+    auto create_spark = [&](Gtk::Box* container, MetricType type) -> auto {
+        auto* spark = Gtk::make_managed<TrendGraph>();
+        spark->set_compact_mode(true);
+        spark->set_metric(type);
+        spark->set_expand(true);
+        if (container != nullptr) {
+            container->set_can_target(false);
+            container->append(*spark);
+        }
+        return spark;
+    };
+
+    m_spark_weight = create_spark(m_spark_weight_box, MetricType::Weight);
+    m_spark_bmi = create_spark(m_spark_bmi_box, MetricType::BMI);
+    m_spark_fat = create_spark(m_spark_fat_box, MetricType::BodyFat);
+    m_spark_water = create_spark(m_spark_water_box, MetricType::Water);
+    m_spark_muscle = create_spark(m_spark_muscle_box, MetricType::Muscle);
+}
+
+void MainWindow::init_event_handlers() {
+    m_sync_button->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_sync_clicked));
+    m_user_list->signal_row_selected().connect(sigc::mem_fun(*this, &MainWindow::on_user_selected));
+    m_btn_edit_waist->signal_clicked().connect([this]() -> void {
+        if (m_current_user) {
+            prompt_waist_change(*m_current_user);
+        }
+    });
+
+    m_card_weight->signal_clicked().connect(
+        [this]() -> void { on_metric_clicked(MetricType::Weight); });
+    m_card_bmi->signal_clicked().connect([this]() -> void { on_metric_clicked(MetricType::BMI); });
+    m_card_fat->signal_clicked().connect(
+        [this]() -> void { on_metric_clicked(MetricType::BodyFat); });
+    m_card_water->signal_clicked().connect(
+        [this]() -> void { on_metric_clicked(MetricType::Water); });
+    m_card_muscle->signal_clicked().connect(
+        [this]() -> void { on_metric_clicked(MetricType::Muscle); });
+
+    m_formula_v2_toggle->signal_toggled().connect([this]() -> void { on_view_model_changed(); });
+
+    m_multi_metric_toggle->signal_toggled().connect([this]() -> void {
+        if (!m_multi_metric_toggle->get_active()) {
+            if (m_selected_metrics.empty()) {
+                m_selected_metrics = {MetricType::Weight};
+            } else {
+                m_selected_metrics = {m_selected_metrics.front()};
+            }
+        }
+        on_view_model_changed();
+    });
+
+    m_range_30d->signal_clicked().connect([this]() -> void {
+        m_active_preset = range_preset_30d;
+        m_view_model.set_range_preset(range_preset_30d);
+    });
+    m_range_90d->signal_clicked().connect([this]() -> void {
+        m_active_preset = range_preset_90d;
+        m_view_model.set_range_preset(range_preset_90d);
+    });
+    m_range_1y->signal_clicked().connect([this]() -> void {
+        m_active_preset = range_preset_1y;
+        m_view_model.set_range_preset(range_preset_1y);
+    });
+    m_range_all->signal_clicked().connect([this]() -> void {
+        m_active_preset = 0;
+        m_view_model.set_range_preset(0);
+    });
+
+    if (m_export_csv_button != nullptr) {
+        m_export_csv_button->signal_clicked().connect(
+            sigc::mem_fun(*this, &MainWindow::on_export_csv_clicked));
+    }
+    if (m_export_json_button != nullptr) {
+        m_export_json_button->signal_clicked().connect(
+            sigc::mem_fun(*this, &MainWindow::on_export_json_clicked));
+    }
+
+    auto on_slider_changed = [this]() -> void {
+        if (!m_updating_from_model) {
+            m_active_preset = -1;
+            m_view_model.set_range_percentages(m_range_start_slider->get_value(),
+                                               m_range_end_slider->get_value());
+        }
+    };
+    m_range_start_slider->signal_value_changed().connect(on_slider_changed);
+    m_range_end_slider->signal_value_changed().connect(on_slider_changed);
+
+    m_view_model.signal_data_changed().connect(
+        sigc::mem_fun(*this, &MainWindow::on_view_model_changed));
+
+    m_hotplug_dispatcher.connect(sigc::mem_fun(*this, &MainWindow::on_device_arrived));
+    m_sync_complete_dispatcher.connect([this]() -> void { on_sync_complete(m_last_sync_result); });
+
+    auto on_unit_changed = [this]() -> void {
+        UnitSystem const units_val = m_unit_imperial_radio->get_active()
+                                         ? UnitSystem::Imperial
+                                         : UnitSystem::Metric;  // NOLINT(misc-include-cleaner)
+        if (units_val != m_settings.get_unit_system()) {
+            m_settings.set_unit_system(units_val);
+            m_settings.save();
+
+            m_main_graph->set_unit_system(units_val);
+            m_spark_weight->set_unit_system(units_val);
+            m_spark_bmi->set_unit_system(units_val);
+            m_spark_fat->set_unit_system(units_val);
+            m_spark_water->set_unit_system(units_val);
+            m_spark_muscle->set_unit_system(units_val);
+
+            on_view_model_changed();
+            update_profile_view();
+        }
+    };
+    m_unit_metric_radio->signal_toggled().connect(on_unit_changed);
+    m_unit_imperial_radio->signal_toggled().connect(on_unit_changed);
+
+    m_devices_list->signal_row_selected().connect(
+        sigc::mem_fun(*this, &MainWindow::on_device_selected));
+    m_device_save_button->signal_clicked().connect(
+        sigc::mem_fun(*this, &MainWindow::on_device_save_clicked));
+    m_device_name_entry->signal_changed().connect(
+        sigc::mem_fun(*this, &MainWindow::on_device_name_changed));
 }
 
 }  // namespace libscale

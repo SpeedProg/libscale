@@ -135,6 +135,16 @@ class MainWindow : public Gtk::ApplicationWindow {
     void on_view_model_changed();
     void update_range_button_selection(int days);
 
+    /**
+     * @brief Hooks signals and setups connection listeners for user controls.
+     */
+    void init_event_handlers();
+
+    /**
+     * @brief Initializes sparkline graphs in metric cards.
+     */
+    void init_sparklines();
+
     void setup_history_list();
     static void on_setup_list_item(const Glib::RefPtr<Gtk::ListItem>& list_item);
     void on_bind_list_item(const Glib::RefPtr<Gtk::ListItem>& list_item);

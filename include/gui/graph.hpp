@@ -40,6 +40,8 @@ enum class ScaleType : uint8_t {
     Percentage
 };
 
+class CoordinateMapper;
+
 /**
  * @brief Custom GTK4 DrawingArea widget for rendering a clean line chart representing health
  * trends. Features automated scaling, hover-over popovers for individual data points, and date
@@ -126,17 +128,76 @@ class TrendGraph : public Gtk::DrawingArea {
      * @param width Width of the drawing area.
      * @param height Height of the drawing area.
      */
-    void draw_single_metric(const Cairo::RefPtr<Cairo::Context>& context, int width,
-                            int height);  // NOLINT(bugprone-easily-swappable-parameters)
+    void draw_single_metric(const Cairo::RefPtr<Cairo::Context>& context);
 
     /**
      * @brief Renders the trend graph with multiple metric lines and overlay Y-axes.
      * @param context Cairo drawing context.
-     * @param width Width of the drawing area.
-     * @param height Height of the drawing area.
      */
-    void draw_multi_metric(const Cairo::RefPtr<Cairo::Context>& context, int width,
-                           int height);  // NOLINT(bugprone-easily-swappable-parameters)
+    void draw_multi_metric(const Cairo::RefPtr<Cairo::Context>& context);
+
+    struct ScaleRange {
+        double min_val = 0.0;
+        double max_val = 0.0;
+        double range = 0.0;
+        bool active = false;
+        double axis_x = 0.0;
+    };
+
+    struct MultiScaleRanges {
+        ScaleRange weight;
+        ScaleRange bmi;
+        ScaleRange percent;
+    };
+
+    struct MultiLayoutInfo {
+        double grid_left = 0.0;
+        double grid_right = 0.0;
+        double grid_top = 0.0;
+        double grid_bottom = 0.0;
+        double graph_width = 0.0;
+        double graph_height = 0.0;
+        double min_time = 0.0;
+        double time_range = 0.0;
+    };
+
+    /**
+     * @brief Renders the background and grid for a single metric graph view.
+     */
+    void draw_single_background(const Cairo::RefPtr<Cairo::Context>& context,
+                                const CoordinateMapper& mapper, MetricType metric);
+
+    /**
+     * @brief Renders the trend line and coordinate points for a single metric.
+     */
+    void draw_single_line(const Cairo::RefPtr<Cairo::Context>& context,
+                          const CoordinateMapper& mapper, MetricType metric);
+
+    /**
+     * @brief Computes the min and max limits for a given ScaleType in multi-metric mode.
+     */
+    [[nodiscard]] auto get_scale_min_max(ScaleType type) const -> std::pair<double, double>;
+
+    /**
+     * @brief Renders a single Y-axis line and labels at the designated offset.
+     */
+    void draw_scale_axis(const Cairo::RefPtr<Cairo::Context>& context,
+                         const ScaleRange& scale_range, const MultiLayoutInfo& layout_info,
+                         double red, double green, double blue, std::string_view suffix);  // NOLINT(bugprone-easily-swappable-parameters)
+
+    /**
+     * @brief Renders the grid lines and Y-axes for the multi-metric view.
+     */
+    void draw_multi_grid_and_axes(const Cairo::RefPtr<Cairo::Context>& context,
+                                  const MultiLayoutInfo& layout_info,
+                                  const MultiScaleRanges& scales);
+
+    /**
+     * @brief Renders the data curves and points for active metrics in multi-metric mode.
+     */
+    void draw_multi_curves(const Cairo::RefPtr<Cairo::Context>& context,
+                           const MultiLayoutInfo& layout_info,
+                           const MultiScaleRanges& scales);
 
     std::vector<Measurement> m_data;
     std::vector<MetricType> m_metrics = {MetricType::Weight};
