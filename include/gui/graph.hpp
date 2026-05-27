@@ -112,8 +112,8 @@ class TrendGraph : public Gtk::DrawingArea {
 
    private:
     auto get_value(const Measurement& measurement, MetricType metric) const -> double;
-    static auto get_time_value(std::chrono::year_month_day date) -> double;
-    static auto format_time_value(double days) -> std::string;
+    static auto get_time_value(std::chrono::sys_seconds date) -> double;
+    static auto format_time_value(double seconds) -> std::string;
     void on_click(int n_press, double x_input, double y_input);
 
     /**
@@ -183,7 +183,8 @@ class TrendGraph : public Gtk::DrawingArea {
      */
     void draw_scale_axis(const Cairo::RefPtr<Cairo::Context>& context,
                          const ScaleRange& scale_range, const MultiLayoutInfo& layout_info,
-                         double red, double green, double blue, std::string_view suffix);  // NOLINT(bugprone-easily-swappable-parameters)
+                         double red, double green, double blue,
+                         std::string_view suffix);  // NOLINT(bugprone-easily-swappable-parameters)
 
     /**
      * @brief Renders the grid lines and Y-axes for the multi-metric view.
@@ -196,8 +197,7 @@ class TrendGraph : public Gtk::DrawingArea {
      * @brief Renders the data curves and points for active metrics in multi-metric mode.
      */
     void draw_multi_curves(const Cairo::RefPtr<Cairo::Context>& context,
-                           const MultiLayoutInfo& layout_info,
-                           const MultiScaleRanges& scales);
+                           const MultiLayoutInfo& layout_info, const MultiScaleRanges& scales);
 
     std::vector<Measurement> m_data;
     std::vector<MetricType> m_metrics = {MetricType::Weight};

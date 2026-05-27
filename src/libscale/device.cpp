@@ -25,7 +25,8 @@
 #include "libscale/device.hpp"
 #include "libscale/types.hpp"
 
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is safe since packet offsets are bounds-checked in loops.
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is safe
+// since packet offsets are bounds-checked in loops.
 namespace libscale {
 
 namespace {

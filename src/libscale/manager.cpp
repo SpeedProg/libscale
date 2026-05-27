@@ -1,5 +1,7 @@
 #include "libscale/manager.hpp"
 
+#include <bits/chrono.h>
+
 #include <algorithm>
 #include <chrono>
 #include <functional>
@@ -77,9 +79,12 @@ void HealthManager::recalculate_measurements(int user_id) {
         auto raw_opt = m_database.get_scale_raw_data(measurement.id);
         if (raw_opt) {
             RawMeasurement raw;
-            raw.year = static_cast<int>(measurement.date.year());
-            raw.month = static_cast<unsigned int>(measurement.date.month());
-            raw.day = static_cast<unsigned int>(measurement.date.day());
+            std::chrono::year_month_day const ymd{
+                std::chrono::floor<std::chrono::days>(  // NOLINT(misc-include-cleaner)
+                    measurement.date)};
+            raw.year = static_cast<int>(ymd.year());
+            raw.month = static_cast<unsigned int>(ymd.month());
+            raw.day = static_cast<unsigned int>(ymd.day());
             raw.weight_raw = raw_opt->weight_raw;
             raw.imp5k = raw_opt->imp5k;
             raw.imp50k = raw_opt->imp50k;

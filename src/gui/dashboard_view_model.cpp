@@ -1,5 +1,7 @@
 #include "gui/dashboard_view_model.hpp"
 
+#include <bits/chrono.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
@@ -35,12 +37,13 @@ void DashboardViewModel::set_range_preset(int days) {
         m_start_pct = 0.0;
         m_end_pct = 1.0;
     } else {
-        const auto& latest_date = m_all_data.back().date;
-        auto const cutoff = std::chrono::sys_days{latest_date} - std::chrono::days{days};
+        auto const cutoff = std::chrono::floor<std::chrono::days>(  // NOLINT(misc-include-cleaner)
+                                m_all_data.back().date) -
+                            std::chrono::days{days};  // NOLINT(misc-include-cleaner)
 
         auto const cutoff_it = std::ranges::lower_bound(
             m_all_data, cutoff, {}, [](const Measurement& measurement) -> std::chrono::sys_days {
-                return std::chrono::sys_days{measurement.date};
+                return std::chrono::floor<std::chrono::days>(measurement.date);
             });
         auto const start_idx = static_cast<size_t>(std::distance(m_all_data.begin(), cutoff_it));
 

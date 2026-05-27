@@ -10,7 +10,8 @@
 #include <string>
 
 namespace libscale {
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is standard for accessing/inserting keys in nlohmann::json.
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is
+// standard for accessing/inserting keys in nlohmann::json.
 
 static constexpr int json_indent_size = 4;
 

@@ -60,7 +60,8 @@
 #include "libscale/types.hpp"
 #include "libscale/worker.hpp"
 
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is used for Gtk::ListBox row indexes which are pre-validated.
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is used
+// for Gtk::ListBox row indexes which are pre-validated.
 namespace libscale {
 
 static constexpr int default_graph_width = 400;
@@ -99,8 +100,10 @@ auto find_resource(const std::filesystem::path& rel_path) -> std::string {
 }
 }  // namespace
 
-MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder,  // NOLINT(readability-function-cognitive-complexity)
-                       HealthManager& manager, ISettingsManager& settings_manager)
+MainWindow::MainWindow(
+    BaseObjectType* cobject,
+    const Glib::RefPtr<Gtk::Builder>& builder,  // NOLINT(readability-function-cognitive-complexity)
+    HealthManager& manager, ISettingsManager& settings_manager)
     : Gtk::ApplicationWindow(cobject),
       m_manager(manager),
       m_settings(settings_manager),
@@ -197,7 +200,7 @@ MainWindow::MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>
         try {
             css_provider->load_from_path(css_path);
             Gtk::StyleContext::add_provider_for_display(Gdk::Display::get_default(), css_provider,
-                                                         GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+                                                        GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
         } catch (const std::exception& e) {
             std::cerr << "Failed to load CSS: " << e.what() << "\n";
         }
@@ -297,11 +300,13 @@ void MainWindow::on_view_model_changed() {
     m_spark_water->set_data(filtered);
     m_spark_muscle->set_data(filtered);
 
-    auto update_card_selection = [this](Gtk::Button* card, MetricType type, const std::string& type_name) -> void {
+    auto update_card_selection = [this](Gtk::Button* card, MetricType type,
+                                        const std::string& type_name) -> void {
         card->remove_css_class("selected");
         card->remove_css_class(type_name);
-        
-        bool const is_selected = std::ranges::find(m_selected_metrics, type) != m_selected_metrics.end();
+
+        bool const is_selected =
+            std::ranges::find(m_selected_metrics, type) != m_selected_metrics.end();
         if (is_selected) {
             card->add_css_class("selected");
             card->add_css_class(type_name);

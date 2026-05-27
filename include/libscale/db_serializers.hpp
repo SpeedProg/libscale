@@ -641,4 +641,137 @@ struct row_extractor<std::chrono::year_month_day> {
     }
 };
 
+// --- sys_seconds Mappings ---
+
+/**
+ * @brief SQLite-ORM type printer specialization for sys_seconds.
+ * Tells SQLite to store sys_seconds as TEXT.
+ */
+template <>
+struct type_printer<std::chrono::sys_seconds> : text_printer {};
+
+/**
+ * @brief SQLite-ORM field printer specialization for sys_seconds.
+ */
+template <>
+struct field_printer<std::chrono::sys_seconds> {
+    /**
+     * @brief Formats a sys_seconds instance as a string.
+     * @param val Timestamp.
+     * @return Formatted string.
+     */
+    auto operator()(const std::chrono::sys_seconds& val) const -> std::string {
+        return std::format("'{:%Y-%m-%d %H:%M:%S}'", val);
+    }
+};
+
+/**
+ * @brief SQLite-ORM statement binder specialization for sys_seconds.
+ */
+template <>
+struct statement_binder<std::chrono::sys_seconds> {
+    /**
+     * @brief Binds a sys_seconds value to an SQLite statement parameter as TEXT.
+     * @param stmt Statement pointer.
+     * @param index Parameter index.
+     * @param value Timestamp to bind.
+     * @return SQLite status code.
+     */
+    static auto bind(sqlite3_stmt* stmt, int index, const std::chrono::sys_seconds& value) -> int {
+        std::string const str = std::format("{:%Y-%m-%d %H:%M:%S}", value);
+        return sqlite3_bind_text(stmt, index, str.c_str(), -1, SQLITE_TRANSIENT);
+    }
+};
+
+/**
+ * @brief SQLite-ORM row extractor specialization for sys_seconds.
+ */
+template <>
+struct row_extractor<std::chrono::sys_seconds> {
+    /**
+     * @brief Extracts a sys_seconds value from a statement column.
+     * @param stmt Statement pointer.
+     * @param columnIndex Column index.
+     * @return Extracted timestamp.
+     */
+    static auto extract(sqlite3_stmt* stmt, int columnIndex) -> std::chrono::sys_seconds {
+        // SQLite C API stores text columns as unsigned char*, requiring cast to standard char*
+        // interface.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        const char* str = reinterpret_cast<const char*>(sqlite3_column_text(stmt, columnIndex));
+        if (str == nullptr) {
+            return {};
+        }
+        return deserialize(str);
+    }
+    /**
+     * @brief Extracts a sys_seconds value from a SQLite value object.
+     * @param value SQLite value.
+     * @return Extracted timestamp.
+     */
+    static auto extract(sqlite3_value* value) -> std::chrono::sys_seconds {
+        // SQLite C API stores text values as unsigned char*, requiring cast to standard char*
+        // interface.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        const char* str = reinterpret_cast<const char*>(sqlite3_value_text(value));
+        if (str == nullptr) {
+            return {};
+        }
+        return deserialize(str);
+    }
+
+   private:
+    static constexpr std::size_t min_date_str_len = 10;  // "YYYY-MM-DD"
+    [[nodiscard]] static auto deserialize(std::string_view dt_str) -> std::chrono::sys_seconds {
+        if (dt_str.length() < min_date_str_len) {
+            return {};
+        }
+        int year_val = 0;
+        int month_val = 0;
+        int day_val = 0;
+        int hour_val = 0;
+        int min_val = 0;
+        int sec_val = 0;
+        const char* start = dt_str.data();
+        const char* end = dt_str.data() + dt_str.size();
+        auto [p1, ec1] = std::from_chars(start, end, year_val);
+        if (ec1 != std::errc{} || p1 == end || *p1 != '-') {
+            return {};
+        }
+        auto [p2, ec2] = std::from_chars(p1 + 1, end, month_val);
+        if (ec2 != std::errc{} || p2 == end || *p2 != '-') {
+            return {};
+        }
+        auto [p3, ec3] = std::from_chars(p2 + 1, end, day_val);
+        if (ec3 != std::errc{}) {
+            return {};
+        }
+
+        // Validate the date components defensively
+        std::chrono::year_month_day const ymd{
+            std::chrono::year(year_val), std::chrono::month(static_cast<unsigned int>(month_val)),
+            std::chrono::day(static_cast<unsigned int>(day_val))};
+        if (!ymd.ok()) {
+            return {};
+        }
+
+        const std::chrono::sys_days days{ymd};
+
+        constexpr int min_time_str_len = 9;
+        // Parse optional time if present (e.g. "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DDTHH:MM:SS")
+        if (p3 < end && (*p3 == ' ' || *p3 == 'T') && (end - p3) >= min_time_str_len) {
+            auto [p4, ec4] = std::from_chars(p3 + 1, end, hour_val);
+            if (ec4 == std::errc{} && p4 != end && *p4 == ':') {
+                auto [p5, ec5] = std::from_chars(p4 + 1, end, min_val);
+                if (ec5 == std::errc{} && p5 != end && *p5 == ':') {
+                    std::from_chars(p5 + 1, end, sec_val);
+                }
+            }
+        }
+
+        return days + std::chrono::hours(hour_val) + std::chrono::minutes(min_val) +
+               std::chrono::seconds(sec_val);
+    }
+};
+
 }  // namespace sqlite_orm

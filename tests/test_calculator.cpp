@@ -73,8 +73,9 @@ TEST(CalculatorTest /*unused*/, BioImpedance /*unused*/) {
     }
 }
 
-TEST(DatabaseTest /*unused*/, RawDataPersistence /*unused*/) {  // NOLINT(readability-function-cognitive-complexity):
-                                                                // GoogleTest macro
+TEST(DatabaseTest /*unused*/,
+     RawDataPersistence /*unused*/) {  // NOLINT(readability-function-cognitive-complexity):
+                                       // GoogleTest macro
     // expansions generate deeply nested if-else structures that
     // artificially inflate cognitive complexity.
     static constexpr double test_weight = 75.5;
@@ -114,7 +115,7 @@ TEST(DatabaseTest /*unused*/, RawDataPersistence /*unused*/) {  // NOLINT(readab
     measurement.muscle_mass = units::Percent{test_muscle};
     measurement.bmi = test_bmi;
     measurement.age = units::Years{test_age};
-    measurement.date = std::chrono::year(test_year) / test_month / test_day;
+    measurement.date = std::chrono::sys_days{std::chrono::year(test_year) / test_month / test_day};
 
     ScaleRawData raw_data;
     raw_data.weight_raw = test_weight_raw;

@@ -12,18 +12,19 @@
 #include <cstddef>
 #include <format>
 #include <functional>
+#include <limits>
 #include <numbers>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
-#include <limits>
 
 #include "gui/settings.hpp"
 #include "libscale/types.hpp"
 
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is used on data vectors where indices are pre-validated.
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is used
+// on data vectors where indices are pre-validated.
 namespace libscale {
 
 namespace {
@@ -327,16 +328,14 @@ auto TrendGraph::get_value(const Measurement& measurement, MetricType metric) co
     }
 }
 
-auto TrendGraph::get_time_value(std::chrono::year_month_day date) -> double {
-    if (!date.ok()) {
-        return 0.0;
-    }
-    return static_cast<double>(std::chrono::sys_days{date}.time_since_epoch().count());
+auto TrendGraph::get_time_value(std::chrono::sys_seconds date) -> double {
+    return static_cast<double>(date.time_since_epoch().count());
 }
 
-auto TrendGraph::format_time_value(double days) -> std::string {
-    auto date_point = std::chrono::sys_days{std::chrono::days{static_cast<long long>(days)}};
-    return std::format("{:%F}", std::chrono::year_month_day{date_point});
+auto TrendGraph::format_time_value(double seconds) -> std::string {
+    auto const date_point =
+        std::chrono::sys_seconds{std::chrono::seconds{static_cast<long long>(seconds)}};
+    return std::format("{:%F}", date_point);
 }
 
 auto TrendGraph::get_paddings() const -> std::pair<double, double> {
@@ -380,7 +379,8 @@ auto TrendGraph::get_paddings() const -> std::pair<double, double> {
     return {padding_size, padding_size};
 }
 
-void TrendGraph::on_draw(const Cairo::RefPtr<Cairo::Context>& context, int /*width*/, int /*height*/) {
+void TrendGraph::on_draw(const Cairo::RefPtr<Cairo::Context>& context, int /*width*/,
+                         int /*height*/) {
     if (m_data.empty() || m_metrics.empty()) {
         return;
     }
@@ -409,8 +409,7 @@ void TrendGraph::draw_single_metric(const Cairo::RefPtr<Cairo::Context>& context
 }
 
 void TrendGraph::draw_single_background(const Cairo::RefPtr<Cairo::Context>& context,
-                                       const CoordinateMapper& mapper,
-                                       MetricType metric) {
+                                        const CoordinateMapper& mapper, MetricType metric) {
     if (m_compact) {
         return;
     }
@@ -434,7 +433,7 @@ void TrendGraph::draw_single_background(const Cairo::RefPtr<Cairo::Context>& con
         int text_w = 0;
         int text_h = 0;
         layout->get_pixel_size(text_w, text_h);
-        
+
         auto style = get_metric_style(metric);
         context->set_source_rgb(style.r, style.g, style.b);
         context->move_to(mapper.padding() - text_w - grid_label_offset,
@@ -448,8 +447,7 @@ void TrendGraph::draw_single_background(const Cairo::RefPtr<Cairo::Context>& con
         double const current_time = mapper.min_time() + (time_ratio * mapper.time_range());
         double const x_pos = mapper.padding() + (time_ratio * mapper.graph_width());
 
-        context->set_source_rgb(grid_color_component, grid_color_component,
-                                grid_color_component);
+        context->set_source_rgb(grid_color_component, grid_color_component, grid_color_component);
         context->move_to(x_pos, mapper.padding());
         context->line_to(x_pos, get_height() - mapper.padding());
         context->stroke();
@@ -469,7 +467,8 @@ void TrendGraph::draw_single_background(const Cairo::RefPtr<Cairo::Context>& con
     if (m_selected_index && *m_selected_index < m_data.size()) {
         const auto& selected_measurement = m_data[*m_selected_index];
         double const selected_time = get_time_value(selected_measurement.date);
-        double const selected_x = mapper.padding() + ((selected_time - mapper.min_time()) * mapper.graph_width() / mapper.time_range());
+        double const selected_x = mapper.padding() + ((selected_time - mapper.min_time()) *
+                                                      mapper.graph_width() / mapper.time_range());
 
         context->set_source_rgba(guide_line_color_component, guide_line_color_component,
                                  guide_line_color_component, guide_line_alpha);
@@ -484,7 +483,7 @@ void TrendGraph::draw_single_background(const Cairo::RefPtr<Cairo::Context>& con
 }
 
 void TrendGraph::draw_single_line(const Cairo::RefPtr<Cairo::Context>& context,
-                                 const CoordinateMapper& mapper, MetricType metric) {
+                                  const CoordinateMapper& mapper, MetricType metric) {
     auto style = get_metric_style(metric);
     context->set_source_rgb(style.r, style.g, style.b);
     context->set_line_width(m_compact ? compact_line_width : line_width);
@@ -492,7 +491,8 @@ void TrendGraph::draw_single_line(const Cairo::RefPtr<Cairo::Context>& context,
 
     bool first = true;
     for (const auto& measurement : m_data) {
-        auto [pos_x, pos_y] = mapper.map(get_value(measurement, metric), get_time_value(measurement.date));
+        auto [pos_x, pos_y] =
+            mapper.map(get_value(measurement, metric), get_time_value(measurement.date));
         if (first) {
             context->move_to(pos_x, pos_y);
             first = false;
@@ -602,10 +602,7 @@ void TrendGraph::draw_multi_metric(const Cairo::RefPtr<Cairo::Context>& context)
     }
 
     MultiScaleRanges const scales{
-        .weight = range_weight,
-        .bmi = range_bmi,
-        .percent = range_percent
-    };
+        .weight = range_weight, .bmi = range_bmi, .percent = range_percent};
 
     draw_multi_grid_and_axes(context, layout_info, scales);
     draw_multi_curves(context, layout_info, scales);
@@ -655,8 +652,10 @@ void TrendGraph::draw_scale_axis(const Cairo::RefPtr<Cairo::Context>& context,
 
     // Draw labels
     for (int i = 0; i < grid_line_count; ++i) {
-        double const y_pos = layout_info.grid_top + (static_cast<double>(i) * layout_info.graph_height / divisor_2);
-        double const val = scale_range.max_val - (static_cast<double>(i) * scale_range.range / divisor_2);
+        double const y_pos =
+            layout_info.grid_top + (static_cast<double>(i) * layout_info.graph_height / divisor_2);
+        double const val =
+            scale_range.max_val - (static_cast<double>(i) * scale_range.range / divisor_2);
 
         auto layout = create_pango_layout(std::format("{:.1f}{}", val, suffix));
         int text_w = 0;
@@ -687,7 +686,8 @@ void TrendGraph::draw_multi_grid_and_axes(const Cairo::RefPtr<Cairo::Context>& c
     context->set_line_width(grid_line_width);
 
     for (int i = 0; i < grid_line_count; ++i) {
-        double const y_pos = layout_info.grid_top + (static_cast<double>(i) * layout_info.graph_height / divisor_2);
+        double const y_pos =
+            layout_info.grid_top + (static_cast<double>(i) * layout_info.graph_height / divisor_2);
         context->move_to(layout_info.grid_left, y_pos);
         context->line_to(layout_info.grid_right, y_pos);
         context->stroke();
@@ -700,8 +700,7 @@ void TrendGraph::draw_multi_grid_and_axes(const Cairo::RefPtr<Cairo::Context>& c
         double const current_time = layout_info.min_time + (time_ratio * layout_info.time_range);
         double const x_pos = layout_info.grid_left + (time_ratio * layout_info.graph_width);
 
-        context->set_source_rgb(grid_color_component, grid_color_component,
-                                grid_color_component);
+        context->set_source_rgb(grid_color_component, grid_color_component, grid_color_component);
         context->move_to(x_pos, layout_info.grid_top);
         context->line_to(x_pos, layout_info.grid_bottom);
         context->stroke();
@@ -718,7 +717,8 @@ void TrendGraph::draw_multi_grid_and_axes(const Cairo::RefPtr<Cairo::Context>& c
     }
 
     std::string_view const weight_suffix = (m_units == UnitSystem::Imperial) ? " lbs" : " kg";
-    draw_scale_axis(context, scales.weight, layout_info, weight_color_r, weight_color_g, weight_color_b, weight_suffix);
+    draw_scale_axis(context, scales.weight, layout_info, weight_color_r, weight_color_g,
+                    weight_color_b, weight_suffix);
     draw_scale_axis(context, scales.bmi, layout_info, bmi_color_r, bmi_color_g, bmi_color_b, "");
 
     int percentage_metrics_count = 0;
@@ -757,11 +757,13 @@ void TrendGraph::draw_multi_curves(const Cairo::RefPtr<Cairo::Context>& context,
         if (scale_range->range < min_scale_range) {
             return layout_info.grid_bottom;
         }
-        return layout_info.grid_bottom - ((val - scale_range->min_val) * layout_info.graph_height / scale_range->range);
+        return layout_info.grid_bottom -
+               ((val - scale_range->min_val) * layout_info.graph_height / scale_range->range);
     };
 
     auto map_x = [&](double time) -> double {
-        return layout_info.grid_left + ((time - layout_info.min_time) * layout_info.graph_width / layout_info.time_range);
+        return layout_info.grid_left +
+               ((time - layout_info.min_time) * layout_info.graph_width / layout_info.time_range);
     };
 
     // Draw vertical selection line if popover is open
@@ -864,7 +866,9 @@ void TrendGraph::on_click(int /*n_press*/, double x_input, double /*y_input*/) {
         for (auto metric : m_metrics) {
             auto style_info = get_metric_style(metric);
             double const val = get_value(measurement, metric);
-            std::string_view const unit = (m_units == UnitSystem::Imperial) ? style_info.unit_imperial : style_info.unit_metric;
+            std::string_view const unit = (m_units == UnitSystem::Imperial)
+                                              ? style_info.unit_imperial
+                                              : style_info.unit_metric;
             popover_text += std::format("\n{}: {:.1f}{}", style_info.name, val, unit);
         }
 

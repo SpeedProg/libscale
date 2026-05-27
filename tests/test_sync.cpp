@@ -541,9 +541,10 @@ TEST(HealthManagerSyncTest /*unused*/, SyncWithEmptyDatabase /*unused*/) {
     // Simulate frontend manually linking the unmapped user to a new profile
     for (const auto& scale_user_profile : sync_outcome.new_users) {
         auto all_local = manager.get_users();
-        bool const is_mapped = std::ranges::any_of(all_local, [&](const UserProfile& local) -> bool {
-            return local.device_user_id == scale_user_profile.device_user_id;
-        });
+        bool const is_mapped =
+            std::ranges::any_of(all_local, [&](const UserProfile& local) -> bool {
+                return local.device_user_id == scale_user_profile.device_user_id;
+            });
         if (!is_mapped) {
             manager.associate_scale_user(scale_user_profile, std::nullopt, sync_outcome);
         }
@@ -758,9 +759,10 @@ TEST(HealthManagerSyncTest /*unused*/, RealDbSyncWithEmptyDatabase /*unused*/) {
     // Simulate frontend manually linking the unmapped user to a new profile
     for (const auto& scale_user_profile : sync_outcome.new_users) {
         auto all_local = manager.get_users();
-        bool const is_mapped = std::ranges::any_of(all_local, [&](const UserProfile& local) -> bool {
-            return local.device_user_id == scale_user_profile.device_user_id;
-        });
+        bool const is_mapped =
+            std::ranges::any_of(all_local, [&](const UserProfile& local) -> bool {
+                return local.device_user_id == scale_user_profile.device_user_id;
+            });
         if (!is_mapped) {
             manager.associate_scale_user(scale_user_profile, std::nullopt, sync_outcome);
         }
@@ -828,7 +830,7 @@ TEST(HealthManagerDeviceTest /*unused*/, GetAndUpdateDeviceAndRecalculate /*unus
     meas.id = 10;
     meas.user_id = 1;
     meas.device_id = 1;
-    meas.date = std::chrono::year(2026) / 5 / 22;
+    meas.date = std::chrono::sys_days{std::chrono::year(2026) / 5 / 22};
     meas.weight = units::Kg{65.0};
     meas.body_fat = units::Percent{25.0};
     meas.muscle_mass = units::Percent{45.0};

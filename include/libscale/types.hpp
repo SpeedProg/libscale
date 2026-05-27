@@ -161,7 +161,7 @@ struct Measurement {
     /// Reference identifier of the device from which this measurement was retrieved.
     std::optional<int> device_id;
     /// Timestamp of the measurement.
-    std::chrono::year_month_day date{};
+    std::chrono::sys_seconds date;
     /// Processed weight in kilograms.
     units::Kg weight{0.0};
     /// Calculated body fat percentage.

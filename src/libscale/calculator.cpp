@@ -90,7 +90,7 @@ auto BioImpedanceCalculatorV1::calculate(const RawMeasurement& raw, const UserPr
     measurement.weight = ctx.weight;
     measurement.bmi = ctx.bmi;
     measurement.age = ctx.bio.age;
-    measurement.date = measurement_date;
+    measurement.date = std::chrono::sys_days{measurement_date};
 
     measurement.body_fat = round_percent(calculate_body_fat(ctx));
     measurement.muscle_mass = round_percent(calculate_muscle_mass(ctx));
