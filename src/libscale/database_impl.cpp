@@ -28,66 +28,76 @@ auto make_sqlite_storage(const std::string& path) {
         path,
         sqlite_orm::make_table(
             "users",
-            sqlite_orm::make_column("id", &UserProfile::id,
+            sqlite_orm::make_column("id", &::libscale::UserProfile::id,
                                     sqlite_orm::primary_key().autoincrement()),
-            sqlite_orm::make_column("name", &UserProfile::name),
-            sqlite_orm::make_column("height_cm", &UserProfile::height),
-            sqlite_orm::make_column("gender", &UserProfile::gender),
-            sqlite_orm::make_column("activity_level", &UserProfile::activity_level),
-            sqlite_orm::make_column("birthday", &UserProfile::birthday),
-            sqlite_orm::make_column("waist_circumference_cm", &UserProfile::waist_circumference)),
+            sqlite_orm::make_column("name", &::libscale::UserProfile::name),
+            sqlite_orm::make_column("height_cm", &::libscale::UserProfile::height),
+            sqlite_orm::make_column("gender", &::libscale::UserProfile::gender),
+            sqlite_orm::make_column("activity_level", &::libscale::UserProfile::activity_level),
+            sqlite_orm::make_column("birthday", &::libscale::UserProfile::birthday),
+            sqlite_orm::make_column("waist_circumference_cm",
+                                    &::libscale::UserProfile::waist_circumference)),
         sqlite_orm::make_table(
             "devices",
-            sqlite_orm::make_column("id", &Device::id, sqlite_orm::primary_key().autoincrement()),
-            sqlite_orm::make_column("name", &Device::name),
-            sqlite_orm::make_column("device_key", &Device::device_key),
-            sqlite_orm::make_column("pathway", &Device::pathway),
-            sqlite_orm::unique(&Device::device_key)),
+            sqlite_orm::make_column("id", &::libscale::Device::id,
+                                    sqlite_orm::primary_key().autoincrement()),
+            sqlite_orm::make_column("name", &::libscale::Device::name),
+            sqlite_orm::make_column("device_key", &::libscale::Device::device_key),
+            sqlite_orm::make_column("pathway", &::libscale::Device::pathway),
+            sqlite_orm::unique(&::libscale::Device::device_key)),
         sqlite_orm::make_table(
             "device_user_mappings",
-            sqlite_orm::make_column("id", &DeviceUserMapping::id,
+            sqlite_orm::make_column("id", &::libscale::DeviceUserMapping::id,
                                     sqlite_orm::primary_key().autoincrement()),
-            sqlite_orm::make_column("user_id", &DeviceUserMapping::user_id),
-            sqlite_orm::make_column("device_id", &DeviceUserMapping::device_id),
-            sqlite_orm::make_column("slot_id", &DeviceUserMapping::slot_id),
-            sqlite_orm::make_column("device_user_id", &DeviceUserMapping::device_user_id),
-            sqlite_orm::foreign_key(&DeviceUserMapping::user_id).references(&UserProfile::id),
-            sqlite_orm::foreign_key(&DeviceUserMapping::device_id).references(&Device::id),
-            sqlite_orm::unique(&DeviceUserMapping::device_id, &DeviceUserMapping::slot_id),
-            sqlite_orm::unique(&DeviceUserMapping::user_id, &DeviceUserMapping::device_id)),
+            sqlite_orm::make_column("user_id", &::libscale::DeviceUserMapping::user_id),
+            sqlite_orm::make_column("device_id", &::libscale::DeviceUserMapping::device_id),
+            sqlite_orm::make_column("slot_id", &::libscale::DeviceUserMapping::slot_id),
+            sqlite_orm::make_column("device_user_id",
+                                    &::libscale::DeviceUserMapping::device_user_id),
+            sqlite_orm::foreign_key(&::libscale::DeviceUserMapping::user_id)
+                .references(&::libscale::UserProfile::id),
+            sqlite_orm::foreign_key(&::libscale::DeviceUserMapping::device_id)
+                .references(&::libscale::Device::id),
+            sqlite_orm::unique(&::libscale::DeviceUserMapping::device_id,
+                               &::libscale::DeviceUserMapping::slot_id),
+            sqlite_orm::unique(&::libscale::DeviceUserMapping::user_id,
+                               &::libscale::DeviceUserMapping::device_id)),
         sqlite_orm::make_table(
             "measurements",
-            sqlite_orm::make_column("id", &Measurement::id,
+            sqlite_orm::make_column("id", &::libscale::Measurement::id,
                                     sqlite_orm::primary_key().autoincrement()),
-            sqlite_orm::make_column("user_id", &Measurement::user_id),
-            sqlite_orm::make_column("device_id", &Measurement::device_id),
-            sqlite_orm::make_column("date", &Measurement::date),
-            sqlite_orm::make_column("weight_kg", &Measurement::weight),
-            sqlite_orm::make_column("body_fat_pct", &Measurement::body_fat),
-            sqlite_orm::make_column("water_pct", &Measurement::water),
-            sqlite_orm::make_column("muscle_mass_pct", &Measurement::muscle_mass),
-            sqlite_orm::make_column("bmi", &Measurement::bmi),
-            sqlite_orm::make_column("age_at_measurement", &Measurement::age),
-            sqlite_orm::make_column("energy_kcal", &Measurement::energy),
-            sqlite_orm::make_column("waist_circumference_cm", &Measurement::waist_circumference),
-            sqlite_orm::make_column("body_fat_v2_pct", &Measurement::body_fat_v2),
-            sqlite_orm::make_column("water_v2_pct", &Measurement::water_v2),
-            sqlite_orm::make_column("muscle_mass_v2_pct", &Measurement::muscle_mass_v2),
-            sqlite_orm::make_column("energy_v2_kcal", &Measurement::energy_v2),
-            sqlite_orm::make_column("ecw_v2_pct", &Measurement::ecw_v2),
-            sqlite_orm::make_column("rfm", &Measurement::rfm),
-            sqlite_orm::make_column("formula_version", &Measurement::formula_version),
-            sqlite_orm::foreign_key(&Measurement::device_id).references(&Device::id),
-            sqlite_orm::unique(&Measurement::user_id, &Measurement::date)),
+            sqlite_orm::make_column("user_id", &::libscale::Measurement::user_id),
+            sqlite_orm::make_column("device_id", &::libscale::Measurement::device_id),
+            sqlite_orm::make_column("date", &::libscale::Measurement::date),
+            sqlite_orm::make_column("weight_kg", &::libscale::Measurement::weight),
+            sqlite_orm::make_column("body_fat_pct", &::libscale::Measurement::body_fat),
+            sqlite_orm::make_column("water_pct", &::libscale::Measurement::water),
+            sqlite_orm::make_column("muscle_mass_pct", &::libscale::Measurement::muscle_mass),
+            sqlite_orm::make_column("bmi", &::libscale::Measurement::bmi),
+            sqlite_orm::make_column("age_at_measurement", &::libscale::Measurement::age),
+            sqlite_orm::make_column("energy_kcal", &::libscale::Measurement::energy),
+            sqlite_orm::make_column("waist_circumference_cm",
+                                    &::libscale::Measurement::waist_circumference),
+            sqlite_orm::make_column("body_fat_v2_pct", &::libscale::Measurement::body_fat_v2),
+            sqlite_orm::make_column("water_v2_pct", &::libscale::Measurement::water_v2),
+            sqlite_orm::make_column("muscle_mass_v2_pct", &::libscale::Measurement::muscle_mass_v2),
+            sqlite_orm::make_column("energy_v2_kcal", &::libscale::Measurement::energy_v2),
+            sqlite_orm::make_column("ecw_v2_pct", &::libscale::Measurement::ecw_v2),
+            sqlite_orm::make_column("rfm", &::libscale::Measurement::rfm),
+            sqlite_orm::make_column("formula_version", &::libscale::Measurement::formula_version),
+            sqlite_orm::foreign_key(&::libscale::Measurement::device_id)
+                .references(&::libscale::Device::id),
+            sqlite_orm::unique(&::libscale::Measurement::user_id, &::libscale::Measurement::date)),
         sqlite_orm::make_table(
             "scale_raw_data",
-            sqlite_orm::make_column("id", &ScaleRawData::id,
+            sqlite_orm::make_column("id", &::libscale::ScaleRawData::id,
                                     sqlite_orm::primary_key().autoincrement()),
-            sqlite_orm::make_column("measurement_id", &ScaleRawData::measurement_id),
-            sqlite_orm::make_column("weight_raw", &ScaleRawData::weight_raw),
-            sqlite_orm::make_column("imp5k", &ScaleRawData::imp5k),
-            sqlite_orm::make_column("imp50k", &ScaleRawData::imp50k),
-            sqlite_orm::foreign_key(&ScaleRawData::measurement_id).references(&Measurement::id)));
+            sqlite_orm::make_column("measurement_id", &::libscale::ScaleRawData::measurement_id),
+            sqlite_orm::make_column("weight_raw", &::libscale::ScaleRawData::weight_raw),
+            sqlite_orm::make_column("imp5k", &::libscale::ScaleRawData::imp5k),
+            sqlite_orm::make_column("imp50k", &::libscale::ScaleRawData::imp50k),
+            sqlite_orm::foreign_key(&::libscale::ScaleRawData::measurement_id)
+                .references(&::libscale::Measurement::id)));
 }
 }  // namespace
 
@@ -229,6 +239,46 @@ auto SqliteDatabaseManager::get_measurements_range(int user_id, std::chrono::yea
                               order_by(&Measurement::date));
 }
 
+namespace {
+auto compare_measurements(const Measurement& existing_meas, const Measurement& incoming_meas,
+                          Storage& storage)
+    -> bool {  // NOLINT(bugprone-easily-swappable-parameters)
+    using namespace sqlite_orm;
+    auto existing_raw_a =
+        storage.get_all<ScaleRawData>(where(c(&ScaleRawData::measurement_id) == existing_meas.id));
+
+    bool const metrics_identical =
+        existing_meas.user_id == incoming_meas.user_id &&
+        existing_meas.device_id == incoming_meas.device_id &&
+        existing_meas.weight.value == incoming_meas.weight.value &&
+        existing_meas.body_fat.value == incoming_meas.body_fat.value &&
+        existing_meas.water.value == incoming_meas.water.value &&
+        existing_meas.muscle_mass.value == incoming_meas.muscle_mass.value &&
+        existing_meas.bmi == incoming_meas.bmi &&
+        existing_meas.age.value == incoming_meas.age.value &&
+        existing_meas.energy.value == incoming_meas.energy.value &&
+        existing_meas.waist_circumference == incoming_meas.waist_circumference &&
+        existing_meas.body_fat_v2.value == incoming_meas.body_fat_v2.value &&
+        existing_meas.water_v2.value == incoming_meas.water_v2.value &&
+        existing_meas.muscle_mass_v2.value == incoming_meas.muscle_mass_v2.value &&
+        existing_meas.energy_v2.value == incoming_meas.energy_v2.value &&
+        existing_meas.ecw_v2.value == incoming_meas.ecw_v2.value &&
+        existing_meas.rfm == incoming_meas.rfm &&
+        existing_meas.formula_version == incoming_meas.formula_version;
+
+    bool raw_identical = false;
+    if (!incoming_meas.scale_raw) {
+        raw_identical = existing_raw_a.empty();
+    } else if (!existing_raw_a.empty()) {
+        const auto& ext_r = existing_raw_a.front();
+        const auto& new_r = *incoming_meas.scale_raw;
+        raw_identical = ext_r.weight_raw == new_r.weight_raw && ext_r.imp5k == new_r.imp5k &&
+                        ext_r.imp50k == new_r.imp50k;
+    }
+    return metrics_identical && raw_identical;
+}
+}  // namespace
+
 void SqliteDatabaseManager::add_measurement(const Measurement& measurement) {
     std::unique_lock const lock(m_mutex);
     using namespace sqlite_orm;
@@ -236,10 +286,29 @@ void SqliteDatabaseManager::add_measurement(const Measurement& measurement) {
     storage.transaction([&]() -> bool {
         int inserted_id = measurement.id;
         if (inserted_id == 0) {
-            inserted_id = storage.insert(measurement);
+            std::chrono::sys_seconds adjusted_date = measurement.date;
+            bool found_slot = false;
+
+            while (!found_slot) {
+                auto existing = storage.get_all<Measurement>(
+                    where(c(&Measurement::user_id) == measurement.user_id &&
+                          c(&Measurement::date) == adjusted_date));
+                if (existing.empty()) {
+                    Measurement new_meas = measurement;
+                    new_meas.date = adjusted_date;
+                    inserted_id = storage.insert(new_meas);
+                    found_slot = true;
+                } else {
+                    if (compare_measurements(existing.front(), measurement, storage)) {
+                        return true;  // Skip redundant write
+                    }
+                    adjusted_date += std::chrono::seconds(1);
+                }
+            }
         } else {
             storage.replace(measurement);
         }
+
         if (measurement.scale_raw) {
             auto raw_data = *measurement.scale_raw;
             raw_data.measurement_id = inserted_id;
