@@ -72,9 +72,9 @@ constexpr double fat_color_r = 1.0;
 constexpr double fat_color_g = 0.34;
 constexpr double fat_color_b = 0.13;
 
-constexpr double water_color_r = 0.13;
-constexpr double water_color_g = 0.59;
-constexpr double water_color_b = 0.95;
+constexpr double water_color_r = 0.0;
+constexpr double water_color_g = 0.75;
+constexpr double water_color_b = 0.65;
 
 constexpr double muscle_color_r = 0.3;
 constexpr double muscle_color_g = 0.69;
