@@ -1,5 +1,5 @@
 ---
-Checks: 'modernize-*,cppcoreguidelines-*,readability-*,bugprone-*,performance-*,concurrency-*,clang-analyzer-*,misc-*, -cppcoreguidelines-pro-type-vararg, -cppcoreguidelines-pro-bounds-pointer-arithmetic, -clang-diagnostic-builtin-macro-redefined, -clang-diagnostic-ignored-optimization-argument, -misc-multiple-inheritance'
+Checks: 'modernize-*,cppcoreguidelines-*,readability-*,bugprone-*,performance-*,concurrency-*,clang-analyzer-*,misc-*, -cppcoreguidelines-pro-type-vararg, -cppcoreguidelines-pro-bounds-pointer-arithmetic, -clang-diagnostic-builtin-macro-redefined, -clang-diagnostic-ignored-optimization-argument, -misc-multiple-inheritance, -misc-include-cleaner'
 WarningsAsErrors: '*'
 HeaderFilterRegex: 'src/.*|include/.*'
 CheckOptions:

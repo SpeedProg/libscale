@@ -6,9 +6,9 @@
 
 #include "libscale/units.hpp"
 #ifdef _WIN32
-#include <winsock2.h>  // NOLINT(misc-include-cleaner): Conditionally compiled header providing timeval struct on Windows.
+#include <winsock2.h>  // Conditionally compiled header providing timeval struct on Windows.
 #else
-#include <sys/time.h>  // NOLINT(misc-include-cleaner): Conditionally compiled header providing timeval struct on POSIX.
+#include <sys/time.h>  // Conditionally compiled header providing timeval struct on POSIX.
 #endif
 
 #include <libusb.h>
@@ -103,8 +103,6 @@ UsbScaleDevice::UsbScaleDevice() {
         // Start polling thread with C++20 stop_token
         m_event_thread = std::jthread([this](const std::stop_token& stop_token) -> void {
             while (!stop_token.stop_requested()) {
-                // timeval struct definition is provided by conditionally compiled platform headers.
-                // NOLINTNEXTLINE(misc-include-cleaner)
                 struct timeval time_val = {.tv_sec = 1, .tv_usec = 0};
                 int const ret_evt =
                     libusb_handle_events_timeout_completed(m_ctx.get(), &time_val, nullptr);

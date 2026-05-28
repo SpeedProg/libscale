@@ -80,8 +80,7 @@ void HealthManager::recalculate_measurements(int user_id) {
         if (raw_opt) {
             RawMeasurement raw;
             std::chrono::year_month_day const ymd{
-                std::chrono::floor<std::chrono::days>(  // NOLINT(misc-include-cleaner)
-                    measurement.date)};
+                std::chrono::floor<std::chrono::days>(measurement.date)};
             raw.year = static_cast<int>(ymd.year());
             raw.month = static_cast<unsigned int>(ymd.month());
             raw.day = static_cast<unsigned int>(ymd.day());

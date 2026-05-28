@@ -168,7 +168,7 @@ MainWindow::MainWindow(
     init_sparklines();
     init_event_handlers();
 
-    UnitSystem const units = m_settings.get_unit_system();  // NOLINT(misc-include-cleaner)
+    UnitSystem const units = m_settings.get_unit_system();
     m_main_graph->set_unit_system(units);
     m_spark_weight->set_unit_system(units);
     m_spark_bmi->set_unit_system(units);
@@ -242,7 +242,7 @@ void MainWindow::on_view_model_changed() {
         label->set_text(std::format("{:.1f}{}", val, unit));
     };
 
-    UnitSystem const units = m_settings.get_unit_system();  // NOLINT(misc-include-cleaner)
+    UnitSystem const units = m_settings.get_unit_system();
 
     bool const use_v2 = m_formula_v2_toggle->get_active();
 
@@ -459,7 +459,7 @@ void MainWindow::on_bind_list_item(const Glib::RefPtr<Gtk::ListItem>& list_item)
     if (row_obj && (row_widget != nullptr)) {
         bool const use_v2 = m_formula_v2_toggle->get_active();
         row_widget->set_measurement(row_obj->get_measurement(), m_settings.get_unit_system(),
-                                    use_v2);  // NOLINT(misc-include-cleaner)
+                                    use_v2);
     }
 }
 
@@ -495,10 +495,9 @@ void MainWindow::update_profile_view() {
     const auto& user = *m_current_user;
     m_profile_name->set_text(user.name);
 
-    UnitSystem const units = m_settings.get_unit_system();  // NOLINT(misc-include-cleaner)
+    UnitSystem const units = m_settings.get_unit_system();
     if (units == UnitSystem::Imperial) {
-        double const total_inches =
-            std::round(user.height.value / cm_per_inch);  // NOLINT(misc-include-cleaner)
+        double const total_inches = std::round(user.height.value / cm_per_inch);
         const int feet = static_cast<int>(total_inches) / inches_per_foot;
         const int inches = static_cast<int>(total_inches) % inches_per_foot;
         m_profile_height->set_text(std::format("{}' {}\"", feet, inches));
@@ -540,8 +539,7 @@ void MainWindow::update_profile_view() {
 
     if (user.waist_circumference && user.waist_circumference->value > 0) {
         if (units == UnitSystem::Imperial) {
-            double const inches = std::round(user.waist_circumference->value /
-                                             cm_per_inch);  // NOLINT(misc-include-cleaner)
+            double const inches = std::round(user.waist_circumference->value / cm_per_inch);
             m_profile_waist->set_text(std::format("{:.0f} in", inches));
         } else {
             m_profile_waist->set_text(std::format("{} cm", user.waist_circumference->value));
@@ -1173,9 +1171,8 @@ void MainWindow::init_event_handlers() {
     m_sync_complete_dispatcher.connect([this]() -> void { on_sync_complete(m_last_sync_result); });
 
     auto on_unit_changed = [this]() -> void {
-        UnitSystem const units_val = m_unit_imperial_radio->get_active()
-                                         ? UnitSystem::Imperial
-                                         : UnitSystem::Metric;  // NOLINT(misc-include-cleaner)
+        UnitSystem const units_val =
+            m_unit_imperial_radio->get_active() ? UnitSystem::Imperial : UnitSystem::Metric;
         if (units_val != m_settings.get_unit_system()) {
             m_settings.set_unit_system(units_val);
             m_settings.save();

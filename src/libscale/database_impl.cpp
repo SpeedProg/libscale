@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-#include "libscale/db_serializers.hpp"  // NOLINT(misc-include-cleaner): METAPROGRAMMING: Registering sqlite_orm custom serializers via template specializations.
+#include "libscale/db_serializers.hpp"
 #include "libscale/types.hpp"
 
 namespace libscale {

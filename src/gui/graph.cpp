@@ -289,7 +289,7 @@ void TrendGraph::set_compact_mode(bool compact) {
     queue_draw();
 }
 
-void TrendGraph::set_unit_system(UnitSystem units) {  // NOLINT(misc-include-cleaner)
+void TrendGraph::set_unit_system(UnitSystem units) {
     m_units = units;
     queue_draw();
 }

@@ -40,8 +40,7 @@ HistoryRow::HistoryRow() : Gtk::Box(Gtk::Orientation::HORIZONTAL, list_item_spac
     m_muscle_label = create_label(col_width_muscle);
 }
 
-void HistoryRow::set_measurement(const Measurement& meas, UnitSystem units,
-                                 bool use_v2) {  // NOLINT(misc-include-cleaner)
+void HistoryRow::set_measurement(const Measurement& meas, UnitSystem units, bool use_v2) {
     m_date_label->set_text(std::format("{:%F}", meas.date));
     if (units == UnitSystem::Imperial) {
         m_weight_label->set_text(format_val(meas.weight.value * kg_to_lbs_factor, " lbs"));

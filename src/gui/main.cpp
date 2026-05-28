@@ -1,5 +1,5 @@
 #include <glibmm/miscutils.h>
-#include <gtkmm/application.h>  // NOLINT(misc-include-cleaner)
+#include <gtkmm/application.h>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
@@ -14,7 +14,7 @@
 #include "gui/main_window.hpp"
 #include "gui/settings.hpp"
 #include "libscale/database_impl.hpp"
-#include "libscale/device.hpp"  // NOLINT(misc-include-cleaner)
+#include "libscale/device.hpp"
 #include "libscale/manager.hpp"
 #include "libscale/scale_factory.hpp"
 

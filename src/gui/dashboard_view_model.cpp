@@ -37,9 +37,8 @@ void DashboardViewModel::set_range_preset(int days) {
         m_start_pct = 0.0;
         m_end_pct = 1.0;
     } else {
-        auto const cutoff = std::chrono::floor<std::chrono::days>(  // NOLINT(misc-include-cleaner)
-                                m_all_data.back().date) -
-                            std::chrono::days{days};  // NOLINT(misc-include-cleaner)
+        auto const cutoff =
+            std::chrono::floor<std::chrono::days>(m_all_data.back().date) - std::chrono::days{days};
 
         auto const cutoff_it = std::ranges::lower_bound(
             m_all_data, cutoff, {}, [](const Measurement& measurement) -> std::chrono::sys_days {
