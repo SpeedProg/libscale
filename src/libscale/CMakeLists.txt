@@ -18,6 +18,7 @@ target_include_directories(libscale PUBLIC
 find_package(SQLite3 REQUIRED)
 find_package(SqliteOrm REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_package(spdlog REQUIRED)
 
 # PkgConfig for system dependencies
 find_package(PkgConfig REQUIRED)
@@ -29,12 +30,15 @@ if(NOT TARGET libusb::libusb)
     add_library(libusb::libusb ALIAS PkgConfig::LIBUSB)
 endif()
 
-target_link_libraries(libscale PUBLIC 
-    libusb::libusb
-    SQLite::SQLite3
-    sqlite_orm::sqlite_orm
-    nlohmann_json::nlohmann_json
-    ${SIGCPP_LIBRARIES}
+target_link_libraries(libscale
+    PUBLIC
+        libusb::libusb
+        SQLite::SQLite3
+        sqlite_orm::sqlite_orm
+        nlohmann_json::nlohmann_json
+        ${SIGCPP_LIBRARIES}
+    PRIVATE
+        spdlog::spdlog
 )
 
 target_include_directories(libscale SYSTEM PUBLIC

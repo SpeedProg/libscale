@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 #include "gui/main_window.hpp"
@@ -41,7 +42,9 @@ auto main(int argc, char* argv[]) -> int {
             // Initialize dependencies
             static libscale::SqliteDatabaseManager db_manager;
             std::string const db_path = data_dir + "/data.db";
-            db_manager.initialize(db_path);
+            if (!db_manager.initialize(db_path)) {
+                throw std::runtime_error("Failed to initialize database at " + db_path);
+            }
 
             // Data Privacy: Enforce strict permissions (chmod 600)
             if (std::filesystem::exists(db_path)) {

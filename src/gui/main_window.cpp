@@ -34,6 +34,7 @@
 #include <gtkmm/spinbutton.h>
 #include <gtkmm/stylecontext.h>
 #include <sigc++/functors/mem_fun.h>
+#include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cmath>
@@ -43,7 +44,6 @@
 #include <format>
 #include <fstream>
 #include <functional>
-#include <iostream>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -196,13 +196,15 @@ MainWindow::MainWindow(
     // Load CSS
     auto css_provider = Gtk::CssProvider::create();
     auto css_path = find_resource("style.css");
-    if (!css_path.empty()) {
+    if (css_path.empty()) {
+        spdlog::warn("Could not locate style.css in any search path; continuing without styling.");
+    } else {
         try {
             css_provider->load_from_path(css_path);
             Gtk::StyleContext::add_provider_for_display(Gdk::Display::get_default(), css_provider,
                                                         GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
         } catch (const std::exception& e) {
-            std::cerr << "Failed to load CSS: " << e.what() << "\n";
+            spdlog::error("Failed to load CSS from {}: {}", css_path, e.what());
         }
     }
 

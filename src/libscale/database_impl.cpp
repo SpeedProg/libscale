@@ -1,12 +1,12 @@
 #include "libscale/database_impl.hpp"
 
+#include <spdlog/spdlog.h>
 #include <sqlite3.h>
 #include <sqlite_orm/sqlite_orm.h>
 
 #include <chrono>
 #include <exception>
 #include <filesystem>
-#include <iostream>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -128,7 +128,7 @@ auto SqliteDatabaseManager::initialize(const std::filesystem::path& db_path) -> 
             std::filesystem::create_directories(parent);
         }
     } catch (const std::exception& ex) {
-        std::cerr << "Failed to create database parent directory: " << ex.what() << "\n";
+        spdlog::error("Failed to create database parent directory: {}", ex.what());
         return false;
     }
 
@@ -141,7 +141,7 @@ auto SqliteDatabaseManager::initialize(const std::filesystem::path& db_path) -> 
             std::filesystem::copy_file(db_path, backup_path,
                                        std::filesystem::copy_options::overwrite_existing);
         } catch (const std::exception& ex) {
-            std::cerr << "Failed to create database backup: " << ex.what() << "\n";
+            spdlog::error("Failed to create database backup: {}", ex.what());
             return false;
         }
     }
@@ -166,7 +166,7 @@ auto SqliteDatabaseManager::initialize(const std::filesystem::path& db_path) -> 
             std::filesystem::remove(backup_path);
         }
     } catch (const std::exception& ex) {
-        std::cerr << "Database schema synchronization failed: " << ex.what() << "\n";
+        spdlog::error("Database schema synchronization failed: {}", ex.what());
 
         // Rollback: Close storage first to release locks
         m_impl->storage.reset();
@@ -177,7 +177,7 @@ auto SqliteDatabaseManager::initialize(const std::filesystem::path& db_path) -> 
                                            std::filesystem::copy_options::overwrite_existing);
                 std::filesystem::remove(backup_path);
             } catch (const std::exception& rollback_ex) {
-                std::cerr << "Database rollback failed: " << rollback_ex.what() << "\n";
+                spdlog::error("Database rollback failed: {}", rollback_ex.what());
             }
         } else {
             std::error_code err_code;
