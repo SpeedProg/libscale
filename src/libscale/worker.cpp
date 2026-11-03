@@ -1,5 +1,7 @@
 #include "libscale/worker.hpp"
 
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
 #include <exception>
 #include <functional>
@@ -73,24 +75,29 @@ void SyncWorker::execute_sync(const std::stop_token& stop_token, const SyncCallb
     SyncResult result;
     try {
         if (!ensure_connected()) {
-            result.success = false;
             result.error_message = "Could not connect to scale.";
-            if (callback) {
-                callback(result);
-            }
-            return;
+        } else {
+            sync_logic(result);
+            result.success = !stop_token.stop_requested();
         }
-
-        sync_logic(result);
-
-        result.success = !stop_token.stop_requested();
     } catch (const std::exception& error) {
         result.success = false;
         result.error_message = error.what();
+    } catch (...) {
+        result.success = false;
+        result.error_message = "Unknown error during scale synchronization.";
     }
 
     if (callback && !stop_token.stop_requested()) {
-        callback(result);
+        // The callback runs on the worker thread and may perform database writes. Exceptions must
+        // never escape a thread entry point, so failures are logged instead of terminating.
+        try {
+            callback(result);
+        } catch (const std::exception& error) {
+            spdlog::error("Unhandled exception in sync completion callback: {}", error.what());
+        } catch (...) {
+            spdlog::error("Unknown exception in sync completion callback.");
+        }
     }
 }
 

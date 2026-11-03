@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <mutex>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -489,6 +490,65 @@ TEST(SyncValidationTest /*unused*/, UserSyncFailsWhenNameMismatches /*unused*/) 
     EXPECT_EQ(sync_outcome.error_message,
               "The users on this scale do not match the expected profiles. Please "
               "re-configure your device.");
+}
+
+TEST(SyncValidationTest /*unused*/, CallbackExceptionsDoNotKillTheWorker /*unused*/) {
+    std::mutex mutex_var;
+    std::condition_variable cv_var;
+    bool first_callback_called = false;
+    bool second_callback_called = false;
+    SyncResult second_outcome;
+
+    MockScaleDevice device;
+    BioImpedanceCalculatorV1 const calculator;
+    SyncWorker worker(device, calculator);
+
+    UserProfile local_user;
+    local_user.id = 1;
+    local_user.name = "Alice";
+    local_user.device_user_id = "slot_1";
+    local_user.slot_id = 1;
+
+    UserProfile scale_user;
+    scale_user.name = "Alice";
+    scale_user.device_user_id = "slot_1";
+    scale_user.slot_id = 1;
+    device.users_to_return = {scale_user};
+
+    std::vector<UserProfile> const existing_users = {local_user};
+
+    worker.start_sync(existing_users, [&](const SyncResult& /*result*/) -> void {
+        {
+            std::scoped_lock const lock(mutex_var);
+            first_callback_called = true;
+        }
+        cv_var.notify_one();
+        throw std::runtime_error("simulated callback failure");
+    });
+
+    {
+        std::unique_lock<std::mutex> lock(mutex_var);
+        static constexpr int wait_seconds = 2;
+        cv_var.wait_for(lock, std::chrono::seconds(wait_seconds),
+                        [&]() -> bool { return first_callback_called; });
+    }
+    ASSERT_TRUE(first_callback_called);
+
+    // The worker thread must survive the throwing callback and remain reusable.
+    worker.start_sync(existing_users, [&](const SyncResult& result) -> void {
+        std::scoped_lock const lock(mutex_var);
+        second_outcome = result;
+        second_callback_called = true;
+        cv_var.notify_one();
+    });
+
+    std::unique_lock<std::mutex> lock(mutex_var);
+    static constexpr int wait_seconds = 2;
+    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds),
+                    [&]() -> bool { return second_callback_called; });
+
+    ASSERT_TRUE(second_callback_called);
+    EXPECT_TRUE(second_outcome.success);
 }
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
