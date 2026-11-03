@@ -263,7 +263,7 @@ class UsbScaleDevice final : public IScaleDevice {
 
     void cleanup_internal();
 
-    void send_command(const std::vector<uint8_t>& cmd);
+    void send_command(std::vector<uint8_t> cmd);
     auto read_response(int length) -> std::vector<uint8_t>;
     static auto LIBUSB_CALL hotplug_callback(libusb_context* ctx, libusb_device* dev,
                                              libusb_hotplug_event event, void* user_data) -> int;

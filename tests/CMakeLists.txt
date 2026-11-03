@@ -2,7 +2,7 @@ set(CMAKE_CXX_CLANG_TIDY "")
 
 find_package(GTest REQUIRED)
 
-add_executable(scale_tests test_calculator.cpp test_sync.cpp)
+add_executable(scale_tests test_calculator.cpp test_device_parser.cpp test_sync.cpp)
 
 target_link_libraries(scale_tests PRIVATE 
     libscale

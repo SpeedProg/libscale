@@ -167,32 +167,43 @@ auto UsbScaleDevice::is_connected() const -> bool {
     return m_handle != nullptr;
 }
 
-void UsbScaleDevice::send_command(const std::vector<uint8_t>& cmd) {
+void UsbScaleDevice::send_command(std::vector<uint8_t> cmd) {
     int transferred = 0;
-    std::vector<uint8_t> mutable_cmd = cmd;
-    libusb_bulk_transfer(m_handle.get(), endpoint_out, mutable_cmd.data(),
-                         static_cast<int>(mutable_cmd.size()), &transferred, usb_timeout_ms);
+    int const result =
+        libusb_bulk_transfer(m_handle.get(), endpoint_out, cmd.data(), static_cast<int>(cmd.size()),
+                             &transferred, usb_timeout_ms);
+    if (result != LIBUSB_SUCCESS) {
+        throw std::runtime_error(
+            std::format("USB command transfer failed: {}", libusb_error_name(result)));
+    }
+    if (transferred != static_cast<int>(cmd.size())) {
+        throw std::runtime_error("USB command transfer was truncated.");
+    }
 }
 
 auto UsbScaleDevice::read_response(int length) -> std::vector<uint8_t> {
     std::vector<uint8_t> buffer(length);
     int transferred = 0;
-    libusb_bulk_transfer(m_handle.get(), endpoint_in, buffer.data(), length, &transferred,
-                         usb_timeout_ms);
-    buffer.resize(transferred);
+    int const result = libusb_bulk_transfer(m_handle.get(), endpoint_in, buffer.data(), length,
+                                            &transferred, usb_timeout_ms);
+    if (result != LIBUSB_SUCCESS) {
+        throw std::runtime_error(
+            std::format("USB response transfer failed: {}", libusb_error_name(result)));
+    }
+    buffer.resize(static_cast<size_t>(transferred));
     return buffer;
 }
 
 auto UsbScaleDevice::read_users() -> std::vector<UserProfile> {
     if (m_handle == nullptr) {
-        return {};
+        throw std::runtime_error("Scale is not connected.");
     }
 
     // Get size
     send_command({cmd_user_data, subcmd_get_size, 0x00, 0x00});
     auto resp = read_response(4);
     if (resp.size() < 3) {
-        return {};
+        throw std::runtime_error("Unexpected user list response from scale.");
     }
 
     auto total_bytes = static_cast<uint16_t>((resp[1] << bits_per_byte) | resp[2]);
@@ -233,10 +244,15 @@ auto UsbScaleDevice::parse_users(std::span<const uint8_t> data) -> std::vector<U
         // - Bits 0-2 (3 LSB): Activity level (values 0-4 representing Scarcely to Extremely
         // active). We extract the gender by shifting the gender_bit (7) and extract the activity
         // level using the 3-bit activity mask (0x07), adding 1 to translate the raw 0-indexed scale
-        // storage value to our 1-indexed domain model ActivityLevel.
+        // storage value to our 1-indexed domain model ActivityLevel. Values outside the domain
+        // range are clamped so corrupt packets cannot produce invalid enum values.
         uint8_t const sex_activity = data[i + off_user_sex_activity];
         user.gender = ((sex_activity >> gender_bit) != 0) ? Gender::Female : Gender::Male;
-        user.activity_level = static_cast<ActivityLevel>((sex_activity & activity_mask) + 1);
+        int const encoded_activity = static_cast<int>((sex_activity & activity_mask) + 1);
+        constexpr int min_activity = static_cast<int>(ActivityLevel::Scarcely);
+        constexpr int max_activity = static_cast<int>(ActivityLevel::HighLevel);
+        user.activity_level =
+            static_cast<ActivityLevel>(std::clamp(encoded_activity, min_activity, max_activity));
 
         // Hardware Date Representation: Birth year is transmitted as a 16-bit Big-Endian integer.
         // Month and day fields are stored in the scale's internal memory as 0-indexed values
@@ -256,7 +272,7 @@ auto UsbScaleDevice::parse_users(std::span<const uint8_t> data) -> std::vector<U
 auto UsbScaleDevice::read_measurements(const std::string& device_user_id)
     -> std::vector<RawMeasurement> {
     if (m_handle == nullptr) {
-        return {};
+        throw std::runtime_error("Scale is not connected.");
     }
 
     int slot_id = 0;
@@ -276,7 +292,7 @@ auto UsbScaleDevice::read_measurements(const std::string& device_user_id)
     send_command({cmd_measurement_data, subcmd_get_size, 0x00, static_cast<uint8_t>(slot_id)});
     auto resp = read_response(4);
     if (resp.size() < 3) {
-        return {};
+        throw std::runtime_error("Unexpected measurement list response from scale.");
     }
 
     auto total_bytes = static_cast<uint16_t>((resp[1] << bits_per_byte) | resp[2]);
