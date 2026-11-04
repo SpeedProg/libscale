@@ -6,7 +6,6 @@
 #include <glibmm/refptr.h>
 #include <glibmm/ustring.h>
 #include <gtk/gtk.h>
-#include <gtkmm/adjustment.h>
 #include <gtkmm/applicationwindow.h>
 #include <gtkmm/box.h>
 #include <gtkmm/builder.h>
@@ -17,9 +16,7 @@
 #include <gtkmm/dialog.h>
 #include <gtkmm/entry.h>
 #include <gtkmm/enums.h>
-#include <gtkmm/filechooser.h>
 #include <gtkmm/filechooserdialog.h>
-#include <gtkmm/filefilter.h>
 #include <gtkmm/label.h>
 #include <gtkmm/listbox.h>
 #include <gtkmm/listboxrow.h>
@@ -31,7 +28,6 @@
 #include <gtkmm/scale.h>
 #include <gtkmm/settings.h>
 #include <gtkmm/signallistitemfactory.h>
-#include <gtkmm/spinbutton.h>
 #include <gtkmm/stylecontext.h>
 #include <sigc++/functors/mem_fun.h>
 #include <spdlog/spdlog.h>
@@ -42,7 +38,6 @@
 #include <exception>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <functional>
 #include <iterator>
 #include <memory>
@@ -52,9 +47,10 @@
 #include <utility>
 #include <vector>
 
+#include "gui/dialogs.hpp"
 #include "gui/graph.hpp"
 #include "gui/history_row.hpp"
-#include "gui/settings.hpp"  //
+#include "gui/settings.hpp"
 #include "libscale/exporter.hpp"
 #include "libscale/manager.hpp"
 #include "libscale/types.hpp"
@@ -548,101 +544,46 @@ auto MainWindow::find_current_user_iterator() const -> std::vector<UserProfile>:
 }
 
 void MainWindow::on_export_csv_clicked() {
-    const auto& data = m_view_model.get_filtered_data();
-    if (data.empty()) {
+    if (m_view_model.get_filtered_data().empty()) {
         show_info_dialog("No Data to Export",
                          "There are no measurements in the current view to export.");
         return;
     }
 
-    if (!m_csv_export_dialog) {
-        m_csv_export_dialog = std::make_unique<Gtk::FileChooserDialog>(
-            *this, "Export CSV File", Gtk::FileChooser::Action::SAVE);
-        m_csv_export_dialog->set_modal(true);
-        m_csv_export_dialog->add_button("_Cancel", Gtk::ResponseType::CANCEL);
-        m_csv_export_dialog->add_button("_Save", Gtk::ResponseType::ACCEPT);
-
-        auto filter_csv = Gtk::FileFilter::create();
-        filter_csv->set_name("CSV files (*.csv)");
-        filter_csv->add_pattern("*.csv");
-        m_csv_export_dialog->add_filter(filter_csv);
-        m_csv_export_dialog->set_current_name("export.csv");
-
-        m_csv_export_dialog->signal_response().connect([this](int response_id) -> void {
-            if (response_id == Gtk::ResponseType::ACCEPT) {
-                auto file = m_csv_export_dialog->get_file();
-                if (file) {
-                    std::string path = file->get_path();
-                    if (!path.ends_with(".csv")) {
-                        path += ".csv";
-                    }
-                    try {
-                        std::ofstream out(path);
-                        if (!out) {
-                            throw std::runtime_error("Could not open file for writing.");
-                        }
-                        const auto& data = m_view_model.get_filtered_data();
-                        out << libscale::DataExporter::to_csv(data);
-                        m_status_label->set_text("Exported CSV to " + path);
-                    } catch (const std::exception& e) {
-                        show_error_dialog("Export Failed",
-                                          std::format("Failed to save CSV file:\n{}", e.what()));
-                    }
-                }
-            }
-            m_csv_export_dialog->hide();
+    export_measurements(
+        *this, m_csv_export_dialog, "Export CSV File", "CSV files (*.csv)", "export.csv", "csv",
+        [this]() -> std::string {
+            return libscale::DataExporter::to_csv(m_view_model.get_filtered_data());
+        },
+        [this](const std::string& path) -> void {
+            m_status_label->set_text("Exported CSV to " + path);
+        },
+        [this](const std::string& message) -> void {
+            show_error_dialog("Export Failed",
+                              std::format("Failed to save CSV file:\n{}", message));
         });
-    }
-    m_csv_export_dialog->show();
 }
 
 void MainWindow::on_export_json_clicked() {
-    const auto& data = m_view_model.get_filtered_data();
-    if (data.empty()) {
+    if (m_view_model.get_filtered_data().empty()) {
         show_info_dialog("No Data to Export",
                          "There are no measurements in the current view to export.");
         return;
     }
 
-    if (!m_json_export_dialog) {
-        m_json_export_dialog = std::make_unique<Gtk::FileChooserDialog>(
-            *this, "Export JSON File", Gtk::FileChooser::Action::SAVE);
-        m_json_export_dialog->set_modal(true);
-        m_json_export_dialog->add_button("_Cancel", Gtk::ResponseType::CANCEL);
-        m_json_export_dialog->add_button("_Save", Gtk::ResponseType::ACCEPT);
-
-        auto filter_json = Gtk::FileFilter::create();
-        filter_json->set_name("JSON files (*.json)");
-        filter_json->add_pattern("*.json");
-        m_json_export_dialog->add_filter(filter_json);
-        m_json_export_dialog->set_current_name("export.json");
-
-        m_json_export_dialog->signal_response().connect([this](int response_id) -> void {
-            if (response_id == Gtk::ResponseType::ACCEPT) {
-                auto file = m_json_export_dialog->get_file();
-                if (file) {
-                    std::string path = file->get_path();
-                    if (!path.ends_with(".json")) {
-                        path += ".json";
-                    }
-                    try {
-                        std::ofstream out(path);
-                        if (!out) {
-                            throw std::runtime_error("Could not open file for writing.");
-                        }
-                        const auto& data = m_view_model.get_filtered_data();
-                        out << libscale::DataExporter::to_json(data);
-                        m_status_label->set_text("Exported JSON to " + path);
-                    } catch (const std::exception& e) {
-                        show_error_dialog("Export Failed",
-                                          std::format("Failed to save JSON file:\n{}", e.what()));
-                    }
-                }
-            }
-            m_json_export_dialog->hide();
+    export_measurements(
+        *this, m_json_export_dialog, "Export JSON File", "JSON files (*.json)", "export.json",
+        "json",
+        [this]() -> std::string {
+            return libscale::DataExporter::to_json(m_view_model.get_filtered_data());
+        },
+        [this](const std::string& path) -> void {
+            m_status_label->set_text("Exported JSON to " + path);
+        },
+        [this](const std::string& message) -> void {
+            show_error_dialog("Export Failed",
+                              std::format("Failed to save JSON file:\n{}", message));
         });
-    }
-    m_json_export_dialog->show();
 }
 
 void MainWindow::show_info_dialog(
@@ -679,179 +620,56 @@ void MainWindow::prompt_next_missing_waist() {
     if (m_users_needing_waist.empty()) {
         return;
     }
-    UserProfile user = m_users_needing_waist.front();
+    UserProfile const user = m_users_needing_waist.front();
     m_users_needing_waist.erase(m_users_needing_waist.begin());
 
-    auto* dialog = Gtk::make_managed<Gtk::Dialog>();
-    dialog->set_title(std::format("Enter Waist Circumference for {}", user.name));
-    dialog->set_transient_for(*this);
-    dialog->set_modal(true);
-
-    static constexpr int dialog_box_spacing = 10;
-    static constexpr int dialog_box_margin = 15;
-    auto* content_area = dialog->get_content_area();
-    auto* box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, dialog_box_spacing);
-    box->set_margin(dialog_box_margin);
-
-    auto* label = Gtk::make_managed<Gtk::Label>(
-        std::format("Please enter the waist circumference for {}:", user.name));
-
-    UnitSystem const units = m_settings.get_unit_system();
-    static constexpr double default_lower_cm = 30.0;
-    static constexpr double default_upper_cm = 250.0;
-    static constexpr double default_def_val_cm = 80.0;
-    static constexpr double default_lower_in = 12.0;
-    static constexpr double default_upper_in = 100.0;
-    static constexpr double default_def_val_in = 32.0;
-    static constexpr double step_increment = 1.0;
-    static constexpr double page_increment = 5.0;
-    static constexpr int box_spacing = 5;
-
-    double lower = default_lower_cm;
-    double upper = default_upper_cm;
-    double def_val = default_def_val_cm;
-    std::string unit_label = " cm";
-    if (units == UnitSystem::Imperial) {
-        lower = default_lower_in;
-        upper = default_upper_in;
-        def_val = default_def_val_in;
-        unit_label = " inches";
-    }
-
-    auto* spin_box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, box_spacing);
-    auto* spin_button = Gtk::make_managed<Gtk::SpinButton>(
-        Gtk::Adjustment::create(def_val, lower, upper, step_increment, page_increment, 0.0),
-        step_increment, 0);
-    auto* suffix = Gtk::make_managed<Gtk::Label>(unit_label);
-    spin_box->append(*spin_button);
-    spin_box->append(*suffix);
-
-    box->append(*label);
-    box->append(*spin_box);
-    content_area->append(*box);
-
-    dialog->add_button("Cancel", Gtk::ResponseType::CANCEL);
-    dialog->add_button("Save", Gtk::ResponseType::ACCEPT);
-
-    dialog->signal_response().connect(
-        [this, dialog, user, spin_button, units](int response_id) mutable -> void {
-            if (response_id == Gtk::ResponseType::ACCEPT) {
-                double val = spin_button->get_value();
-                if (units == UnitSystem::Imperial) {
-                    val = std::round(val * cm_per_inch);  // Convert to cm
-                }
-                user.waist_circumference = libscale::units::Cm{static_cast<int>(val)};
-                m_manager.update_user(user);
-                refresh_user_list();
-
-                prompt_recalculate_history(user, [this]() -> void { prompt_next_missing_waist(); });
-            } else {
+    prompt_waist_circumference(
+        *this, user.name, m_settings.get_unit_system(), user.waist_circumference,
+        [this, user](std::optional<libscale::units::Cm> waist) -> void {
+            if (!waist) {
                 prompt_next_missing_waist();
+                return;
             }
-            dialog->hide();
+            UserProfile updated_user = user;
+            updated_user.waist_circumference = waist;
+            m_manager.update_user(updated_user);
+            refresh_user_list();
+            prompt_recalculate_history(updated_user,
+                                       [this]() -> void { prompt_next_missing_waist(); });
         });
-    dialog->show();
 }
 
 void MainWindow::prompt_recalculate_history(const UserProfile& user,
                                             const std::function<void()>& on_finished) {
-    auto* dialog = Gtk::make_managed<Gtk::MessageDialog>(
-        *this, "Recalculate Historical Measurements?", false, Gtk::MessageType::QUESTION,
-        Gtk::ButtonsType::YES_NO, true);
-    dialog->set_secondary_text(
+    confirm_action(
+        *this, "Recalculate Historical Measurements?",
         std::format("Would you like to recalculate all past measurements for {} using the updated "
                     "waist circumference?\n\nIf Yes, existing RFM and V2 body composition metrics "
                     "will be updated. If No, this change will only affect future measurements.",
-                    user.name));
-
-    dialog->signal_response().connect([this, dialog, user, on_finished](int response_id) -> void {
-        if (response_id == Gtk::ResponseType::YES) {
-            recalculate_user_history(user.id);
-        }
-        dialog->hide();
-        if (on_finished) {
-            on_finished();
-        }
-    });
-    dialog->show();
+                    user.name),
+        [this, user_id = user.id, on_finished](bool confirmed) -> void {
+            if (confirmed) {
+                recalculate_user_history(user_id);
+            }
+            if (on_finished) {
+                on_finished();
+            }
+        });
 }
 
 void MainWindow::prompt_waist_change(const UserProfile& user) {
-    auto* dialog = Gtk::make_managed<Gtk::Dialog>();
-    dialog->set_title(std::format("Edit Waist Circumference for {}", user.name));
-    dialog->set_transient_for(*this);
-    dialog->set_modal(true);
-
-    static constexpr int dialog_box_spacing = 10;
-    static constexpr int dialog_box_margin = 15;
-    auto* content_area = dialog->get_content_area();
-    auto* box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, dialog_box_spacing);
-    box->set_margin(dialog_box_margin);
-
-    auto* label = Gtk::make_managed<Gtk::Label>(
-        std::format("Enter new waist circumference for {}:", user.name));
-
-    UnitSystem const units = m_settings.get_unit_system();
-    static constexpr double default_lower_cm = 30.0;
-    static constexpr double default_upper_cm = 250.0;
-    static constexpr double default_def_val_cm = 80.0;
-    static constexpr double default_lower_in = 12.0;
-    static constexpr double default_upper_in = 100.0;
-    static constexpr double default_def_val_in = 32.0;
-    static constexpr double step_increment = 1.0;
-    static constexpr double page_increment = 5.0;
-    static constexpr int box_spacing = 5;
-
-    double lower = default_lower_cm;
-    double upper = default_upper_cm;
-    double def_val = default_def_val_cm;
-    std::string unit_label = " cm";
-
-    if (user.waist_circumference && user.waist_circumference->value > 0) {
-        if (units == UnitSystem::Imperial) {
-            def_val = std::round(user.waist_circumference->value / cm_per_inch);
-        } else {
-            def_val = user.waist_circumference->value;
-        }
-    }
-
-    if (units == UnitSystem::Imperial) {
-        lower = default_lower_in;
-        upper = default_upper_in;
-        unit_label = " inches";
-    }
-
-    auto* spin_box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, box_spacing);
-    auto* spin_button = Gtk::make_managed<Gtk::SpinButton>(
-        Gtk::Adjustment::create(def_val, lower, upper, step_increment, page_increment, 0.0),
-        step_increment, 0);
-    auto* suffix = Gtk::make_managed<Gtk::Label>(unit_label);
-    spin_box->append(*spin_button);
-    spin_box->append(*suffix);
-
-    box->append(*label);
-    box->append(*spin_box);
-    content_area->append(*box);
-
-    dialog->add_button("Cancel", Gtk::ResponseType::CANCEL);
-    dialog->add_button("Save", Gtk::ResponseType::ACCEPT);
-
-    dialog->signal_response().connect(
-        [this, dialog, user_copy = user, spin_button, units](int response_id) mutable -> void {
-            if (response_id == Gtk::ResponseType::ACCEPT) {
-                double val = spin_button->get_value();
-                if (units == UnitSystem::Imperial) {
-                    val = std::round(val * cm_per_inch);  // Convert to cm
-                }
-                user_copy.waist_circumference = libscale::units::Cm{static_cast<int>(val)};
-                m_manager.update_user(user_copy);
-                refresh_user_list();
-
-                prompt_recalculate_history(user_copy, nullptr);
-            }
-            dialog->hide();
-        });
-    dialog->show();
+    prompt_waist_circumference(*this, user.name, m_settings.get_unit_system(),
+                               user.waist_circumference,
+                               [this, user](std::optional<libscale::units::Cm> waist) -> void {
+                                   if (!waist) {
+                                       return;
+                                   }
+                                   UserProfile updated_user = user;
+                                   updated_user.waist_circumference = waist;
+                                   m_manager.update_user(updated_user);
+                                   refresh_user_list();
+                                   prompt_recalculate_history(updated_user, nullptr);
+                               });
 }
 
 void MainWindow::recalculate_user_history(int user_id) {
@@ -872,59 +690,24 @@ void MainWindow::prompt_next_user_reconciliation() {
     UserProfile const scale_user = m_pending_reconciliation_users.front();
     m_pending_reconciliation_users.erase(m_pending_reconciliation_users.begin());
 
-    auto dialog = std::make_unique<Gtk::Dialog>();
-    auto* dialog_raw = dialog.get();
-    dialog_raw->set_title(std::format("Unmapped Scale Profile: {}", scale_user.name));
-    dialog_raw->set_transient_for(*this);
-    dialog_raw->set_modal(true);
-
-    static constexpr int dialog_box_spacing = 10;
-    static constexpr int dialog_box_margin = 15;
-    auto* content_area = dialog_raw->get_content_area();
-    auto* box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, dialog_box_spacing);
-    box->set_margin(dialog_box_margin);
-
-    auto* label = Gtk::make_managed<Gtk::Label>(
-        std::format("A user profile named '{}' (Slot {}) was found on the scale but is not linked "
-                    "to any local profile.\n"
-                    "Select an existing local profile to link, or create a new one.",
-                    scale_user.name, scale_user.slot_id));
-    box->append(*label);
-
-    auto* dropdown = Gtk::make_managed<Gtk::ComboBoxText>();
-    dropdown->append("0", std::format("Create new profile: {}", scale_user.name));
-    dropdown->set_active_id("0");
-
-    auto all_local_users = m_manager.get_users();
-    for (const auto& local_user : all_local_users) {
+    std::vector<UserProfile> linkable_users;
+    for (const auto& local_user : m_manager.get_users()) {
         if (local_user.device_user_id.empty()) {
-            dropdown->append(std::to_string(local_user.id), local_user.name);
+            linkable_users.push_back(local_user);
         }
     }
-    box->append(*dropdown);
-    content_area->append(*box);
 
-    dialog_raw->add_button("Cancel", Gtk::ResponseType::CANCEL);
-    dialog_raw->add_button("Link", Gtk::ResponseType::ACCEPT);
-
-    dialog_raw->signal_response().connect(
-        [this, dialog_raw, scale_user, dropdown](int response_id) mutable -> void {
-            if (response_id == Gtk::ResponseType::ACCEPT) {
-                std::string const selected_id_str = dropdown->get_active_id();
-                std::optional<int> user_id = std::nullopt;
-                if (selected_id_str != "0") {
-                    user_id = std::stoi(selected_id_str);
-                }
+    m_active_dialog = create_scale_link_dialog(
+        *this, scale_user, linkable_users,
+        [this, scale_user](bool accepted, std::optional<int> user_id) -> void {
+            if (accepted) {
                 m_manager.associate_scale_user(scale_user, user_id, m_last_sync_result);
             }
-            dialog_raw->hide();
             Glib::signal_idle().connect_once([this]() -> void {
                 m_active_dialog.reset();
                 prompt_next_user_reconciliation();
             });
         });
-
-    m_active_dialog = std::move(dialog);
     m_active_dialog->show();
 }
 
@@ -1032,26 +815,22 @@ void MainWindow::on_device_save_clicked() {
     refresh_device_list();
 
     if (pathway_changed) {
-        auto* dialog = Gtk::make_managed<Gtk::MessageDialog>(
-            *this, "Recalculate Historical Measurements?", false, Gtk::MessageType::QUESTION,
-            Gtk::ButtonsType::YES_NO, true);
-        dialog->set_secondary_text(
+        confirm_action(
+            *this, "Recalculate Historical Measurements?",
             std::format("The electrode pathway for '{}' has been modified.\n\n"
                         "Would you like to recalculate the body composition history for all users "
                         "who have measurements recorded from this device?",
-                        updated_device.name));
-
-        dialog->signal_response().connect([this, dialog, device_id](int response_id) -> void {
-            if (response_id == Gtk::ResponseType::YES) {
+                        updated_device.name),
+            [this, device_id](bool confirmed) -> void {
+                if (!confirmed) {
+                    return;
+                }
                 m_manager.recalculate_device_measurements(device_id);
                 if (m_current_user) {
                     load_user_data(m_current_user->id);
                     update_profile_view();
                 }
-            }
-            dialog->hide();
-        });
-        dialog->show();
+            });
     } else {
         if (m_current_user) {
             update_profile_view();

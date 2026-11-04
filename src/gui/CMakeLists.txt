@@ -1,6 +1,7 @@
 set(GUI_SOURCES
     main.cpp
     main_window.cpp
+    dialogs.cpp
     graph.cpp
     settings.cpp
     history_row.cpp
