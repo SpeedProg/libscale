@@ -361,20 +361,7 @@ void MainWindow::on_sync_complete(const SyncResult& result) {
     m_sync_button->set_sensitive(true);
     if (result.success) {
         m_status_label->set_text("Sync complete");
-
-        // Find which users in result.new_users are STILL unmapped after process_sync_results
-        m_pending_reconciliation_users.clear();
-        const auto all_local_users = m_manager.get_users();
-        for (const auto& scale_user : result.new_users) {
-            bool const is_mapped =
-                std::ranges::any_of(all_local_users, [&](const UserProfile& local_user) -> bool {
-                    return local_user.device_user_id == scale_user.device_user_id;
-                });
-            if (!is_mapped) {
-                m_pending_reconciliation_users.push_back(scale_user);
-            }
-        }
-
+        m_pending_reconciliation_users = m_manager.get_unmapped_scale_users(result);
         prompt_next_user_reconciliation();
     } else {
         m_status_label->set_text("Error: " + result.error_message);

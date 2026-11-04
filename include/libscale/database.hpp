@@ -154,6 +154,14 @@ class IDatabaseManager {
         -> std::vector<DeviceUserMapping> = 0;
 
     /**
+     * @brief Fetches all device-user mappings registered for a specific physical device.
+     * @param device_id The database ID of the device.
+     * @return List of device-user mappings for the device.
+     */
+    [[nodiscard]] virtual auto get_device_user_mappings_by_device(int device_id) const
+        -> std::vector<DeviceUserMapping> = 0;
+
+    /**
      * @brief Inserts a new device-user mapping.
      * @param mapping The mapping to insert.
      * @return The database ID of the inserted mapping.

@@ -403,6 +403,14 @@ auto SqliteDatabaseManager::get_device_user_mappings(int user_id) const
         .get_all<DeviceUserMapping>(where(c(&DeviceUserMapping::user_id) == user_id));
 }
 
+auto SqliteDatabaseManager::get_device_user_mappings_by_device(int device_id) const
+    -> std::vector<DeviceUserMapping> {
+    std::shared_lock const lock(m_mutex);
+    using namespace sqlite_orm;
+    return get_storage(m_impl->storage.get())
+        .get_all<DeviceUserMapping>(where(c(&DeviceUserMapping::device_id) == device_id));
+}
+
 auto SqliteDatabaseManager::add_device_user_mapping(const DeviceUserMapping& mapping) -> int {
     std::unique_lock const lock(m_mutex);
     return get_storage(m_impl->storage.get()).insert(mapping);

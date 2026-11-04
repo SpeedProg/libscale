@@ -258,6 +258,22 @@ class FakeDatabaseManager : public IDatabaseManager {
     }
 
     /**
+     * @brief Gets device-user mappings for a device.
+     * @param device_id The ID of the device.
+     * @return List of mappings.
+     */
+    [[nodiscard]] auto get_device_user_mappings_by_device(int device_id) const
+        -> std::vector<DeviceUserMapping> override {
+        std::vector<DeviceUserMapping> result;
+        for (const auto& mapping : mappings) {
+            if (mapping.device_id == device_id) {
+                result.push_back(mapping);
+            }
+        }
+        return result;
+    }
+
+    /**
      * @brief Adds a new device-user mapping.
      * @param mapping The mapping to add.
      * @return The auto-incremented ID of the mapping.
@@ -691,6 +707,70 @@ TEST(HealthManagerSyncTest /*unused*/, FirstSyncMapsByName /*unused*/) {
     auto measurements = database.get_measurements(local_user_id);
     ASSERT_EQ(measurements.size(), 1);
     EXPECT_NEAR(measurements[0].weight.value, 65.0, 0.001);
+}
+
+TEST(HealthManagerSyncTest /*unused*/, AmbiguousNamesAreNotAutoMapped /*unused*/) {
+    std::mutex mutex_var;
+    std::condition_variable cv_var;
+    bool callback_called = false;
+    SyncResult sync_outcome;
+
+    FakeDatabaseManager database;
+    MockScaleDevice device;
+
+    UserProfile first_user;
+    first_user.name = "Alex";
+    first_user.height = units::Cm{175};
+    first_user.gender = Gender::Male;
+    first_user.activity_level = ActivityLevel::Light;
+    first_user.birthday = std::chrono::year(1988) / 3 / 12;
+    database.add_user(first_user);
+
+    UserProfile second_user = first_user;
+    second_user.height = units::Cm{180};
+    database.add_user(second_user);
+
+    UserProfile scale_user;
+    scale_user.name = "Alex";
+    scale_user.device_user_id = "slot_1";
+    scale_user.slot_id = 1;
+    scale_user.height = units::Cm{175};
+    scale_user.gender = Gender::Male;
+    scale_user.activity_level = ActivityLevel::Light;
+    scale_user.birthday = std::chrono::year(1988) / 3 / 12;
+    device.users_to_return = {scale_user};
+
+    RawMeasurement raw;
+    raw.year = 2026;
+    raw.month = 5;
+    raw.day = 22;
+    raw.weight_raw = 650;
+    raw.imp5k = 500;
+    raw.imp50k = 450;
+    device.measurements_to_return = {raw};
+
+    HealthManager manager(database, device);
+
+    manager.start_sync([&](const SyncResult& result) -> void {
+        std::scoped_lock const lock(mutex_var);
+        sync_outcome = result;
+        callback_called = true;
+        cv_var.notify_one();
+    });
+
+    std::unique_lock<std::mutex> lock(mutex_var);
+    static constexpr int wait_seconds = 2;
+    cv_var.wait_for(lock, std::chrono::seconds(wait_seconds),
+                    [&]() -> bool { return callback_called; });
+
+    ASSERT_TRUE(callback_called);
+    EXPECT_TRUE(sync_outcome.success);
+
+    // Linking by name is ambiguous, so nothing may be mapped automatically.
+    EXPECT_TRUE(database.mappings.empty());
+    auto const unmapped = manager.get_unmapped_scale_users(sync_outcome);
+    ASSERT_EQ(unmapped.size(), 1U);
+    EXPECT_EQ(unmapped.front().device_user_id, "slot_1");
 }
 
 TEST(HealthManagerSyncTest /*unused*/, ManualAssociation /*unused*/) {

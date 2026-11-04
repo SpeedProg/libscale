@@ -34,27 +34,22 @@ auto HealthManager::get_users() const -> std::vector<UserProfile> {
     std::string_view const dev_key = m_device.get_device_key();
     auto dev_opt = m_database.get_device_by_key(std::string{dev_key});
 
+    // Fetch all mappings for the connected device once instead of querying per user.
+    std::unordered_map<int, DeviceUserMapping> mappings_by_user;
     if (dev_opt) {
-        for (auto& user : users) {
-            auto mappings = m_database.get_device_user_mappings(user.id);
-            bool mapped = false;
-            for (const auto& mapping : mappings) {
-                if (mapping.device_id == dev_opt->id) {
-                    user.slot_id = mapping.slot_id;
-                    user.device_user_id = mapping.device_user_id;
-                    mapped = true;
-                    break;
-                }
-            }
-            if (!mapped) {
-                user.slot_id = 0;
-                user.device_user_id = "";
-            }
+        for (const auto& mapping : m_database.get_device_user_mappings_by_device(dev_opt->id)) {
+            mappings_by_user.insert_or_assign(mapping.user_id, mapping);
         }
-    } else {
-        for (auto& user : users) {
+    }
+
+    for (auto& user : users) {
+        auto const mapping_it = mappings_by_user.find(user.id);
+        if (mapping_it != mappings_by_user.end()) {
+            user.slot_id = mapping_it->second.slot_id;
+            user.device_user_id = mapping_it->second.device_user_id;
+        } else {
             user.slot_id = 0;
-            user.device_user_id = "";
+            user.device_user_id.clear();
         }
     }
     return users;
@@ -122,19 +117,22 @@ auto HealthManager::get_measurements_range(int user_id, std::chrono::year_month_
     return m_database.get_measurements_range(user_id, start_date, end_date);
 }
 
-void HealthManager::start_sync(std::function<void(SyncResult)> callback) {
+auto HealthManager::ensure_device_registered() -> int {
     std::string_view const dev_key = m_device.get_device_key();
     auto dev_opt = m_database.get_device_by_key(std::string{dev_key});
-    int device_id = 0;
-    if (!dev_opt) {
-        Device new_dev;
-        new_dev.name = m_device.get_device_name();
-        new_dev.device_key = std::string{dev_key};
-        new_dev.pathway = m_device.get_impedance_pathway();
-        device_id = m_database.add_device(new_dev);
-    } else {
-        device_id = dev_opt->id;
+    if (dev_opt) {
+        return dev_opt->id;
     }
+
+    Device new_dev;
+    new_dev.name = m_device.get_device_name();
+    new_dev.device_key = std::string{dev_key};
+    new_dev.pathway = m_device.get_impedance_pathway();
+    return m_database.add_device(new_dev);
+}
+
+void HealthManager::start_sync(std::function<void(SyncResult)> callback) {
+    int const device_id = ensure_device_registered();
 
     auto existing_users = get_users();
 
@@ -155,30 +153,36 @@ void HealthManager::start_sync(std::function<void(SyncResult)> callback) {
 }
 
 void HealthManager::process_sync_results(int device_id, const SyncResult& result) {
-    // 1. Reconcile users discovered on scale
+    // 1. Reconcile users discovered on the scale. A profile is only linked automatically when
+    // its name matches exactly one local profile; ambiguous or unknown names are left for the
+    // user to reconcile through associate_scale_user().
     auto all_existing_users = m_database.get_users();
 
     for (const auto& user : result.new_users) {
-        auto it_existing = std::ranges::find_if(
-            all_existing_users,
-            [&](const UserProfile& local_user) -> bool { return local_user.name == user.name; });
-
-        if (it_existing != all_existing_users.end()) {
-            int const user_id = it_existing->id;
-            const auto existing_mappings = m_database.get_device_user_mappings(user_id);
-            bool const already_mapped = std::ranges::any_of(
-                existing_mappings, [&](const DeviceUserMapping& device_mapping) -> bool {
-                    return device_mapping.device_id == device_id;
-                });
-            if (!already_mapped) {
-                // Register DeviceUserMapping for the existing user
-                DeviceUserMapping mapping;
-                mapping.user_id = user_id;
-                mapping.device_id = device_id;
-                mapping.slot_id = user.slot_id;
-                mapping.device_user_id = user.device_user_id;
-                m_database.add_device_user_mapping(mapping);
+        std::vector<int> matching_user_ids;
+        for (const auto& local_user : all_existing_users) {
+            if (local_user.name == user.name) {
+                matching_user_ids.push_back(local_user.id);
             }
+        }
+        if (matching_user_ids.size() != 1) {
+            continue;
+        }
+
+        int const user_id = matching_user_ids.front();
+        const auto existing_mappings = m_database.get_device_user_mappings(user_id);
+        bool const already_mapped = std::ranges::any_of(
+            existing_mappings, [&](const DeviceUserMapping& device_mapping) -> bool {
+                return device_mapping.device_id == device_id;
+            });
+        if (!already_mapped) {
+            // Register DeviceUserMapping for the existing user
+            DeviceUserMapping mapping;
+            mapping.user_id = user_id;
+            mapping.device_id = device_id;
+            mapping.slot_id = user.slot_id;
+            mapping.device_user_id = user.device_user_id;
+            m_database.add_device_user_mapping(mapping);
         }
     }
 
@@ -204,19 +208,7 @@ void HealthManager::process_sync_results(int device_id, const SyncResult& result
 
 void HealthManager::associate_scale_user(const UserProfile& scale_user, std::optional<int> user_id,
                                          const SyncResult& result) {
-    std::string_view const dev_key = m_device.get_device_key();
-    auto dev_opt = m_database.get_device_by_key(std::string{dev_key});
-    const int device_id = [&]() -> int {
-        if (!dev_opt) {
-            Device new_dev;
-            new_dev.name = m_device.get_device_name();
-            new_dev.device_key = std::string{dev_key};
-            new_dev.pathway = m_device.get_impedance_pathway();
-            return m_database.add_device(new_dev);
-        }
-        return dev_opt->id;
-    }();
-
+    const int device_id = ensure_device_registered();
     const int target_user_id = user_id ? *user_id : m_database.add_user(scale_user);
 
     // Register DeviceUserMapping for this user
@@ -236,6 +228,23 @@ void HealthManager::associate_scale_user(const UserProfile& scale_user, std::opt
             m_database.add_measurement(measurement);
         }
     }
+}
+
+auto HealthManager::get_unmapped_scale_users(const SyncResult& result) const
+    -> std::vector<UserProfile> {
+    auto const local_users = get_users();
+    std::vector<UserProfile> unmapped_users;
+    for (const auto& scale_user : result.new_users) {
+        bool const is_mapped =
+            std::ranges::any_of(local_users, [&scale_user](const UserProfile& local_user) -> bool {
+                return !local_user.device_user_id.empty() &&
+                       local_user.device_user_id == scale_user.device_user_id;
+            });
+        if (!is_mapped) {
+            unmapped_users.push_back(scale_user);
+        }
+    }
+    return unmapped_users;
 }
 
 void HealthManager::stop_sync() {

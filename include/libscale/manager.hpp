@@ -109,6 +109,15 @@ class HealthManager {
                               const SyncResult& result);
 
     /**
+     * @brief Lists scale profiles from a synchronization result that are still not mapped to a
+     * local user profile and therefore require manual reconciliation.
+     * @param result The synchronization result to inspect.
+     * @return Scale user profiles without a local mapping.
+     */
+    [[nodiscard]] auto get_unmapped_scale_users(const SyncResult& result) const
+        -> std::vector<UserProfile>;
+
+    /**
      * @brief Retrieves all physical scale devices registered in the database.
      * @return List of devices.
      */
@@ -128,6 +137,17 @@ class HealthManager {
     void recalculate_device_measurements(int device_id);
 
    private:
+    /**
+     * @brief Returns the database ID of the connected scale, registering it on first use.
+     * @return The database ID of the device.
+     */
+    auto ensure_device_registered() -> int;
+
+    /**
+     * @brief Imports sync results, automatically linking unambiguous scale profiles by name.
+     * @param device_id The database ID of the active scale device.
+     * @param result The synchronization result to reconcile.
+     */
     void process_sync_results(int device_id, const SyncResult& result);
 
     IDatabaseManager& m_database;

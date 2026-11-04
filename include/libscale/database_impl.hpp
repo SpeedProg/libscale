@@ -149,6 +149,14 @@ class SqliteDatabaseManager : public IDatabaseManager {
     auto get_device_user_mappings(int user_id) const -> std::vector<DeviceUserMapping> override;
 
     /**
+     * @brief Fetches all device-user mappings registered for a specific physical device.
+     * @param device_id Database ID of the device.
+     * @return List of device-user mappings for the device.
+     */
+    auto get_device_user_mappings_by_device(int device_id) const
+        -> std::vector<DeviceUserMapping> override;
+
+    /**
      * @brief Inserts a new device-user mapping.
      * @param mapping The mapping to insert.
      * @return The database ID of the inserted mapping.
