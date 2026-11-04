@@ -62,7 +62,7 @@
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is used
 // for Gtk::ListBox row indexes which are pre-validated.
-namespace libscale {
+namespace comfort_select {
 
 static constexpr int default_graph_width = 400;
 static constexpr int default_graph_height = 200;
@@ -494,24 +494,24 @@ void MainWindow::update_profile_view() {
         m_profile_height->set_text(std::format("{} cm", user.height.value));
     }
 
-    std::string const gender_str = (user.gender == Gender::Male) ? "Male" : "Female";
+    std::string const gender_str = (user.gender == libscale::Gender::Male) ? "Male" : "Female";
     m_profile_gender->set_text(gender_str);
 
     std::string activity_str;
     switch (user.activity_level) {
-        case ActivityLevel::Scarcely:
+        case libscale::ActivityLevel::Scarcely:
             activity_str = "Scarcely Active";
             break;
-        case ActivityLevel::Light:
+        case libscale::ActivityLevel::Light:
             activity_str = "Lightly Active";
             break;
-        case ActivityLevel::HomeGarden:
+        case libscale::ActivityLevel::HomeGarden:
             activity_str = "Moderately Active";
             break;
-        case ActivityLevel::Sports:
+        case libscale::ActivityLevel::Sports:
             activity_str = "Very Active";
             break;
-        case ActivityLevel::HighLevel:
+        case libscale::ActivityLevel::HighLevel:
             activity_str = "Extremely Active";
             break;
     }
@@ -740,7 +740,7 @@ void MainWindow::prompt_next_missing_waist() {
                 if (units == UnitSystem::Imperial) {
                     val = std::round(val * cm_per_inch);  // Convert to cm
                 }
-                user.waist_circumference = units::Cm{static_cast<int>(val)};
+                user.waist_circumference = libscale::units::Cm{static_cast<int>(val)};
                 m_manager.update_user(user);
                 refresh_user_list();
 
@@ -843,7 +843,7 @@ void MainWindow::prompt_waist_change(const UserProfile& user) {
                 if (units == UnitSystem::Imperial) {
                     val = std::round(val * cm_per_inch);  // Convert to cm
                 }
-                user_copy.waist_circumference = units::Cm{static_cast<int>(val)};
+                user_copy.waist_circumference = libscale::units::Cm{static_cast<int>(val)};
                 m_manager.update_user(user_copy);
                 refresh_user_list();
 
@@ -974,7 +974,7 @@ void MainWindow::on_device_selected(Gtk::ListBoxRow* row) {
         m_device_name_entry->set_text(m_selected_device->name);
         m_device_key_label->set_text(m_selected_device->device_key);
 
-        if (m_selected_device->pathway == ImpedancePathway::FootToFoot) {
+        if (m_selected_device->pathway == libscale::ImpedancePathway::FootToFoot) {
             m_device_pathway_combo->set_active_id("FootToFoot");
         } else {
             m_device_pathway_combo->set_active_id("HandToFoot");
@@ -1014,9 +1014,9 @@ void MainWindow::on_device_save_clicked() {
         return;
     }
 
-    ImpedancePathway pathway = ImpedancePathway::HandToFoot;
+    libscale::ImpedancePathway pathway = libscale::ImpedancePathway::HandToFoot;
     if (m_device_pathway_combo->get_active_id() == "FootToFoot") {
-        pathway = ImpedancePathway::FootToFoot;
+        pathway = libscale::ImpedancePathway::FootToFoot;
     }
 
     bool const pathway_changed = (pathway != m_selected_device->pathway);
@@ -1188,5 +1188,5 @@ void MainWindow::init_event_handlers() {
         sigc::mem_fun(*this, &MainWindow::on_device_name_changed));
 }
 
-}  // namespace libscale
+}  // namespace comfort_select
 // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)

@@ -5,7 +5,9 @@
 #include "gui/settings.hpp"
 #include "libscale/types.hpp"
 
-namespace libscale {
+namespace comfort_select {
+
+using libscale::Measurement;
 
 /**
  * @brief Custom GTK4 list item widget representing a single row in the measurement history table.
@@ -38,4 +40,4 @@ class HistoryRow : public Gtk::Box {
     static auto format_val(double val, const std::string& unit) -> std::string;
 };
 
-}  // namespace libscale
+}  // namespace comfort_select

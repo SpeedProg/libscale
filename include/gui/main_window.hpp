@@ -26,7 +26,13 @@
 #include "gui/settings.hpp"
 #include "libscale/manager.hpp"
 
-namespace libscale {
+namespace comfort_select {
+
+using libscale::Device;
+using libscale::HealthManager;
+using libscale::Measurement;
+using libscale::SyncResult;
+using libscale::UserProfile;
 
 /**
  * @brief Glib::Object wrapper for raw Measurement structures.
@@ -257,4 +263,4 @@ class MainWindow : public Gtk::ApplicationWindow {
     bool m_updating_from_model = false;
 };
 
-}  // namespace libscale
+}  // namespace comfort_select

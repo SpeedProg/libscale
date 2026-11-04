@@ -25,7 +25,7 @@
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is used
 // on data vectors where indices are pre-validated.
-namespace libscale {
+namespace comfort_select {
 
 namespace {
 constexpr double bg_color_component = 0.08;
@@ -889,5 +889,5 @@ void TrendGraph::on_click(int /*n_press*/, double x_input, double /*y_input*/) {
     }
 }
 
-}  // namespace libscale
+}  // namespace comfort_select
 // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)

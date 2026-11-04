@@ -10,7 +10,7 @@
 
 #include "libscale/types.hpp"
 
-namespace libscale {
+namespace comfort_select {
 
 void DashboardViewModel::set_data(const std::vector<Measurement>& data) {
     m_all_data = data;
@@ -72,4 +72,4 @@ void DashboardViewModel::apply_filter() {
     m_signal_data_changed.emit();
 }
 
-}  // namespace libscale
+}  // namespace comfort_select

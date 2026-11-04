@@ -10,7 +10,9 @@
 #include "gui/settings.hpp"
 #include "libscale/types.hpp"
 
-namespace libscale {
+namespace comfort_select {
+
+using libscale::Measurement;
 
 /**
  * @brief Identifies which health metric is currently selected for rendering on the graph.
@@ -211,4 +213,4 @@ class TrendGraph : public Gtk::DrawingArea {
     Gtk::Label m_popover_label;
 };
 
-}  // namespace libscale
+}  // namespace comfort_select

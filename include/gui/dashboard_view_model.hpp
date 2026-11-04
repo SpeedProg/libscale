@@ -7,7 +7,9 @@
 
 #include "libscale/types.hpp"
 
-namespace libscale {
+namespace comfort_select {
+
+using libscale::Measurement;
 
 /**
  * @brief The MVVM View-Model coordinating inputs, presets, range sliders, and filtered datasets.
@@ -75,4 +77,4 @@ class DashboardViewModel {
     sigc::signal<void()> m_signal_data_changed;
 };
 
-}  // namespace libscale
+}  // namespace comfort_select

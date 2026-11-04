@@ -10,7 +10,7 @@
 #include "gui/settings.hpp"
 #include "libscale/types.hpp"
 
-namespace libscale {
+namespace comfort_select {
 
 static constexpr int list_item_spacing = 10;
 static constexpr int list_item_margin = 5;
@@ -74,4 +74,4 @@ auto HistoryRow::format_val(double val, const std::string& unit) -> std::string 
     return std::format("{:.1f}{}", val, unit);
 }
 
-}  // namespace libscale
+}  // namespace comfort_select

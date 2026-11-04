@@ -2,7 +2,7 @@
 #include <filesystem>
 #include <string>
 
-namespace libscale {
+namespace comfort_select {
 
 /// Default window width in pixels.
 static constexpr int default_window_width = 1000;
@@ -178,4 +178,4 @@ class JsonSettingsManager : public ISettingsManager {
     bool m_is_maximized = false;
 };
 
-}  // namespace libscale
+}  // namespace comfort_select

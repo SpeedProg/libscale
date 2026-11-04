@@ -9,7 +9,7 @@
 #include <nlohmann/json_fwd.hpp>
 #include <string>
 
-namespace libscale {
+namespace comfort_select {
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access): Subscripting is
 // standard for accessing/inserting keys in nlohmann::json.
 
@@ -65,4 +65,4 @@ void JsonSettingsManager::save() {
 }
 
 // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-}  // namespace libscale
+}  // namespace comfort_select

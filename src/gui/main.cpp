@@ -59,11 +59,11 @@ auto main(int argc, char* argv[]) -> int {
                     libscale::ScaleProviderFactory::ProviderType::UsbComfortSelect);
             static libscale::HealthManager manager(db_manager, *device);
 
-            static libscale::JsonSettingsManager settings;
+            static comfort_select::JsonSettingsManager settings;
             settings.load(data_dir + "/settings.json");
 
             // Create and show window
-            auto* window = libscale::MainWindow::create(manager, settings);
+            auto* window = comfort_select::MainWindow::create(manager, settings);
             app->add_window(*window);
             window->set_visible(true);
 
