@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "gui/metrics.hpp"
 #include "gui/settings.hpp"
 #include "libscale/types.hpp"
 
@@ -309,20 +310,11 @@ auto TrendGraph::get_value(const Measurement& measurement, MetricType metric) co
         case MetricType::BMI:
             return measurement.bmi;
         case MetricType::BodyFat:
-            if (m_use_v2 && measurement.body_fat_v2.value > 0.0) {
-                return measurement.body_fat_v2.value;
-            }
-            return measurement.body_fat.value;
+            return effective_body_fat(measurement, m_use_v2).value;
         case MetricType::Water:
-            if (m_use_v2 && measurement.water_v2.value > 0.0) {
-                return measurement.water_v2.value;
-            }
-            return measurement.water.value;
+            return effective_water(measurement, m_use_v2).value;
         case MetricType::Muscle:
-            if (m_use_v2 && measurement.muscle_mass_v2.value > 0.0) {
-                return measurement.muscle_mass_v2.value;
-            }
-            return measurement.muscle_mass.value;
+            return effective_muscle_mass(measurement, m_use_v2).value;
         default:
             return 0.0;
     }

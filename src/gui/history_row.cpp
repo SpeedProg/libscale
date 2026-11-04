@@ -7,6 +7,7 @@
 
 #include <format>
 
+#include "gui/metrics.hpp"
 #include "gui/settings.hpp"
 #include "libscale/types.hpp"
 
@@ -49,25 +50,9 @@ void HistoryRow::set_measurement(const Measurement& meas, UnitSystem units, bool
     }
     m_bmi_label->set_text(format_val(meas.bmi, ""));
 
-    double body_fat = meas.body_fat.value;
-    double water = meas.water.value;
-    double muscle = meas.muscle_mass.value;
-
-    if (use_v2) {
-        if (meas.body_fat_v2.value > 0.0) {
-            body_fat = meas.body_fat_v2.value;
-        }
-        if (meas.water_v2.value > 0.0) {
-            water = meas.water_v2.value;
-        }
-        if (meas.muscle_mass_v2.value > 0.0) {
-            muscle = meas.muscle_mass_v2.value;
-        }
-    }
-
-    m_fat_label->set_text(format_val(body_fat, "%"));
-    m_water_label->set_text(format_val(water, "%"));
-    m_muscle_label->set_text(format_val(muscle, "%"));
+    m_fat_label->set_text(format_val(effective_body_fat(meas, use_v2).value, "%"));
+    m_water_label->set_text(format_val(effective_water(meas, use_v2).value, "%"));
+    m_muscle_label->set_text(format_val(effective_muscle_mass(meas, use_v2).value, "%"));
 }
 
 auto HistoryRow::format_val(double val, const std::string& unit) -> std::string {

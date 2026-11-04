@@ -50,6 +50,7 @@
 #include "gui/dialogs.hpp"
 #include "gui/graph.hpp"
 #include "gui/history_row.hpp"
+#include "gui/metrics.hpp"
 #include "gui/settings.hpp"
 #include "libscale/exporter.hpp"
 #include "libscale/manager.hpp"
@@ -261,24 +262,9 @@ void MainWindow::on_view_model_changed() {
         }
         update_label(m_val_bmi, latest.bmi, "");
 
-        double body_fat = latest.body_fat.value;
-        double water = latest.water.value;
-        double muscle = latest.muscle_mass.value;
-        if (use_v2) {
-            if (latest.body_fat_v2.value > 0.0) {
-                body_fat = latest.body_fat_v2.value;
-            }
-            if (latest.water_v2.value > 0.0) {
-                water = latest.water_v2.value;
-            }
-            if (latest.muscle_mass_v2.value > 0.0) {
-                muscle = latest.muscle_mass_v2.value;
-            }
-        }
-
-        update_label(m_val_fat, body_fat, " %");
-        update_label(m_val_water, water, " %");
-        update_label(m_val_muscle, muscle, " %");
+        update_label(m_val_fat, effective_body_fat(latest, use_v2).value, " %");
+        update_label(m_val_water, effective_water(latest, use_v2).value, " %");
+        update_label(m_val_muscle, effective_muscle_mass(latest, use_v2).value, " %");
         m_range_start_label->set_text(std::format("{:%F}", filtered.front().date));
         m_range_end_label->set_text(std::format("{:%F}", filtered.back().date));
     }
