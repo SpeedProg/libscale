@@ -3,6 +3,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -20,6 +21,12 @@ namespace libscale {
  * @brief The central service layer coordinating database access, hardware communication,
  * metric calculations, and background scale synchronization.
  * Follows the Single Responsibility Principle by delegating specific logic to specialized classes.
+ *
+ * ### Thread-Safety
+ * All public operations are serialized with an internal mutex so multi-step read-modify-write
+ * sequences are safe when the GUI thread and the background sync worker call the manager
+ * concurrently. The completion callback passed to start_sync() is invoked on the worker thread
+ * after the internal lock has been released and must marshal UI work itself (see Glib::Dispatcher).
  */
 class HealthManager {
    public:
@@ -138,13 +145,35 @@ class HealthManager {
 
    private:
     /**
+     * @brief Returns the users annotated with their mapping for the connected scale.
+     * Requires m_mutex to be held by the caller.
+     * @return List of user profiles.
+     */
+    [[nodiscard]] auto get_users_locked() const -> std::vector<UserProfile>;
+
+    /**
+     * @brief Recalculates measurements for a user. Requires m_mutex to be held by the caller.
+     * @param user_id The unique database ID of the user.
+     */
+    void recalculate_measurements_locked(int user_id);
+
+    /**
+     * @brief Recalculates measurements across all users for a device. Requires m_mutex to be
+     * held by the caller.
+     * @param device_id The database ID of the scale device.
+     */
+    void recalculate_device_measurements_locked(int device_id);
+
+    /**
      * @brief Returns the database ID of the connected scale, registering it on first use.
+     * Requires m_mutex to be held by the caller.
      * @return The database ID of the device.
      */
     auto ensure_device_registered() -> int;
 
     /**
      * @brief Imports sync results, automatically linking unambiguous scale profiles by name.
+     * Requires m_mutex to be held by the caller.
      * @param device_id The database ID of the active scale device.
      * @param result The synchronization result to reconcile.
      */
@@ -153,6 +182,9 @@ class HealthManager {
     IDatabaseManager& m_database;
     IScaleDevice& m_device;
     std::unique_ptr<IBioImpedanceCalculator> m_calculator;
+    mutable std::mutex m_mutex;
+    // Declared after m_mutex so the worker thread (and its callbacks) are joined before the mutex
+    // is destroyed.
     std::unique_ptr<SyncWorker> m_worker;
 };
 

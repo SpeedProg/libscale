@@ -30,6 +30,11 @@ HealthManager::HealthManager(IDatabaseManager& database, IScaleDevice& device,
       m_worker(std::make_unique<SyncWorker>(device, *m_calculator)) {}
 
 auto HealthManager::get_users() const -> std::vector<UserProfile> {
+    std::scoped_lock const lock(m_mutex);
+    return get_users_locked();
+}
+
+auto HealthManager::get_users_locked() const -> std::vector<UserProfile> {
     auto users = m_database.get_users();
     std::string_view const dev_key = m_device.get_device_key();
     auto dev_opt = m_database.get_device_by_key(std::string{dev_key});
@@ -56,11 +61,17 @@ auto HealthManager::get_users() const -> std::vector<UserProfile> {
 }
 
 void HealthManager::update_user(const UserProfile& user) {
+    std::scoped_lock const lock(m_mutex);
     m_database.update_user(user);
 }
 
 void HealthManager::recalculate_measurements(int user_id) {
-    auto users = get_users();
+    std::scoped_lock const lock(m_mutex);
+    recalculate_measurements_locked(user_id);
+}
+
+void HealthManager::recalculate_measurements_locked(int user_id) {
+    auto users = get_users_locked();
     auto user_iterator = std::ranges::find_if(
         users,
         [user_id](const UserProfile& user_profile) -> bool { return user_profile.id == user_id; });
@@ -104,16 +115,19 @@ void HealthManager::recalculate_measurements(int user_id) {
 }
 
 void HealthManager::delete_user(int user_id) {
+    std::scoped_lock const lock(m_mutex);
     m_database.delete_user(user_id);
 }
 
 auto HealthManager::get_measurements(int user_id) const -> std::vector<Measurement> {
+    std::scoped_lock const lock(m_mutex);
     return m_database.get_measurements(user_id);
 }
 
 auto HealthManager::get_measurements_range(int user_id, std::chrono::year_month_day start_date,
                                            std::chrono::year_month_day end_date) const
     -> std::vector<Measurement> {
+    std::scoped_lock const lock(m_mutex);
     return m_database.get_measurements_range(user_id, start_date, end_date);
 }
 
@@ -132,15 +146,22 @@ auto HealthManager::ensure_device_registered() -> int {
 }
 
 void HealthManager::start_sync(std::function<void(SyncResult)> callback) {
-    int const device_id = ensure_device_registered();
-
-    auto existing_users = get_users();
+    int device_id = 0;
+    std::vector<UserProfile> existing_users;
+    {
+        std::scoped_lock const lock(m_mutex);
+        device_id = ensure_device_registered();
+        existing_users = get_users_locked();
+    }
 
     // Safety: Capture dependencies carefully. Since m_worker is joined in destructor,
-    // 'this' is safe as long as the worker thread is running.
+    // 'this' is safe as long as the worker thread is running. The lock must not be held while the
+    // worker is started or joined, otherwise a callback that is already waiting for the lock would
+    // deadlock against the joining thread.
     auto wrapped_callback =
         [this, device_id, callback_moved = std::move(callback)](const SyncResult& result) -> void {
         if (result.success) {
+            std::scoped_lock const lock(m_mutex);
             process_sync_results(device_id, result);
         }
 
@@ -187,7 +208,7 @@ void HealthManager::process_sync_results(int device_id, const SyncResult& result
     }
 
     // 2. Map scale user IDs to database user IDs and save measurements
-    auto all_users = get_users();
+    auto all_users = get_users_locked();
     std::unordered_map<std::string, int> device_id_to_db_id;
     for (const auto& user : all_users) {
         if (!user.device_user_id.empty()) {
@@ -208,6 +229,7 @@ void HealthManager::process_sync_results(int device_id, const SyncResult& result
 
 void HealthManager::associate_scale_user(const UserProfile& scale_user, std::optional<int> user_id,
                                          const SyncResult& result) {
+    std::scoped_lock const lock(m_mutex);
     const int device_id = ensure_device_registered();
     const int target_user_id = user_id ? *user_id : m_database.add_user(scale_user);
 
@@ -232,7 +254,8 @@ void HealthManager::associate_scale_user(const UserProfile& scale_user, std::opt
 
 auto HealthManager::get_unmapped_scale_users(const SyncResult& result) const
     -> std::vector<UserProfile> {
-    auto const local_users = get_users();
+    std::scoped_lock const lock(m_mutex);
+    auto const local_users = get_users_locked();
     std::vector<UserProfile> unmapped_users;
     for (const auto& scale_user : result.new_users) {
         bool const is_mapped =
@@ -252,15 +275,22 @@ void HealthManager::stop_sync() {
 }
 
 auto HealthManager::get_devices() const -> std::vector<Device> {
+    std::scoped_lock const lock(m_mutex);
     return m_database.get_devices();
 }
 
 void HealthManager::update_device(const Device& device) {
+    std::scoped_lock const lock(m_mutex);
     m_database.update_device(device);
 }
 
 void HealthManager::recalculate_device_measurements(int device_id) {
-    auto users = get_users();
+    std::scoped_lock const lock(m_mutex);
+    recalculate_device_measurements_locked(device_id);
+}
+
+void HealthManager::recalculate_device_measurements_locked(int device_id) {
+    auto users = get_users_locked();
     for (const auto& user : users) {
         auto measurements = m_database.get_measurements(user.id);
         bool const has_device_measurement =
@@ -268,7 +298,7 @@ void HealthManager::recalculate_device_measurements(int device_id) {
                 return measurement.device_id && *measurement.device_id == device_id;
             });
         if (has_device_measurement) {
-            recalculate_measurements(user.id);
+            recalculate_measurements_locked(user.id);
         }
     }
 }
