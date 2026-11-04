@@ -10,32 +10,25 @@
 namespace libscale {
 
 /**
- * @brief Abstract interface defining operations for data persistence.
- * Decouples database technology implementations from high-level management layers.
+ * @brief Abstract repository defining persistence operations for user profiles.
+ * Consumers that only manage users should depend on this interface instead of the aggregate.
  */
-class IDatabaseManager {
+class IUserRepository {
    public:
     /**
      * @brief Default constructor.
      */
-    IDatabaseManager() = default;
+    IUserRepository() = default;
 
     /**
      * @brief Virtual destructor to ensure proper cleanup of derived database connections.
      */
-    virtual ~IDatabaseManager() = default;
+    virtual ~IUserRepository() = default;
 
-    IDatabaseManager(const IDatabaseManager&) = delete;
-    auto operator=(const IDatabaseManager&) -> IDatabaseManager& = delete;
-    IDatabaseManager(IDatabaseManager&&) = delete;
-    auto operator=(IDatabaseManager&&) -> IDatabaseManager& = delete;
-
-    /**
-     * @brief Initializes the database connection and runs any pending schema migrations.
-     * @param db_path Path to the database file on disk.
-     * @return True if initialized successfully, false otherwise.
-     */
-    virtual auto initialize(const std::filesystem::path& db_path) -> bool = 0;
+    IUserRepository(const IUserRepository&) = delete;
+    auto operator=(const IUserRepository&) -> IUserRepository& = delete;
+    IUserRepository(IUserRepository&&) = delete;
+    auto operator=(IUserRepository&&) -> IUserRepository& = delete;
 
     /**
      * @brief Fetches all registered user profiles from the database.
@@ -61,6 +54,27 @@ class IDatabaseManager {
      * @param user_id The database ID of the user to delete.
      */
     virtual void delete_user(int user_id) = 0;
+};
+
+/**
+ * @brief Abstract repository defining persistence operations for measurements and raw telemetry.
+ */
+class IMeasurementRepository {
+   public:
+    /**
+     * @brief Default constructor.
+     */
+    IMeasurementRepository() = default;
+
+    /**
+     * @brief Virtual destructor to ensure proper cleanup of derived database connections.
+     */
+    virtual ~IMeasurementRepository() = default;
+
+    IMeasurementRepository(const IMeasurementRepository&) = delete;
+    auto operator=(const IMeasurementRepository&) -> IMeasurementRepository& = delete;
+    IMeasurementRepository(IMeasurementRepository&&) = delete;
+    auto operator=(IMeasurementRepository&&) -> IMeasurementRepository& = delete;
 
     /**
      * @brief Retrieves all historical measurements for a specific user from the database.
@@ -110,6 +124,27 @@ class IDatabaseManager {
      * @param measurement_id The database ID of the measurement to delete.
      */
     virtual void delete_measurement(int measurement_id) = 0;
+};
+
+/**
+ * @brief Abstract repository defining persistence operations for devices and device-user mappings.
+ */
+class IDeviceRepository {
+   public:
+    /**
+     * @brief Default constructor.
+     */
+    IDeviceRepository() = default;
+
+    /**
+     * @brief Virtual destructor to ensure proper cleanup of derived database connections.
+     */
+    virtual ~IDeviceRepository() = default;
+
+    IDeviceRepository(const IDeviceRepository&) = delete;
+    auto operator=(const IDeviceRepository&) -> IDeviceRepository& = delete;
+    IDeviceRepository(IDeviceRepository&&) = delete;
+    auto operator=(IDeviceRepository&&) -> IDeviceRepository& = delete;
 
     /**
      * @brief Fetches all registered physical scale devices.
@@ -177,6 +212,38 @@ class IDatabaseManager {
     [[nodiscard]] virtual auto get_device_user_mapping(int device_id,
                                                        const std::string& device_user_id) const
         -> std::optional<DeviceUserMapping> = 0;
+};
+
+/**
+ * @brief Aggregate database interface implemented by concrete storage backends.
+ * Combines the repository interfaces and the lifecycle operation. Consumers should depend on the
+ * narrow repository interface they actually need.
+ */
+class IDatabaseManager : public IUserRepository,
+                         public IMeasurementRepository,
+                         public IDeviceRepository {
+   public:
+    /**
+     * @brief Default constructor.
+     */
+    IDatabaseManager() = default;
+
+    /**
+     * @brief Virtual destructor to ensure proper cleanup of derived database connections.
+     */
+    ~IDatabaseManager() override = default;
+
+    IDatabaseManager(const IDatabaseManager&) = delete;
+    auto operator=(const IDatabaseManager&) -> IDatabaseManager& = delete;
+    IDatabaseManager(IDatabaseManager&&) = delete;
+    auto operator=(IDatabaseManager&&) -> IDatabaseManager& = delete;
+
+    /**
+     * @brief Initializes the database connection and runs any pending schema migrations.
+     * @param db_path Path to the database file on disk.
+     * @return True if initialized successfully, false otherwise.
+     */
+    virtual auto initialize(const std::filesystem::path& db_path) -> bool = 0;
 };
 
 }  // namespace libscale

@@ -23,7 +23,9 @@ namespace libscale {
 
 HealthManager::HealthManager(IDatabaseManager& database, IScaleDevice& device,
                              std::unique_ptr<IBioImpedanceCalculator> calculator)
-    : m_database(database),
+    : m_users(database),
+      m_measurements(database),
+      m_devices(database),
       m_device(device),
       m_calculator(calculator ? std::move(calculator)
                               : std::make_unique<BioImpedanceCalculatorV1>()),
@@ -35,14 +37,14 @@ auto HealthManager::get_users() const -> std::vector<UserProfile> {
 }
 
 auto HealthManager::get_users_locked() const -> std::vector<UserProfile> {
-    auto users = m_database.get_users();
+    auto users = m_users.get_users();
     std::string_view const dev_key = m_device.get_device_key();
-    auto dev_opt = m_database.get_device_by_key(std::string{dev_key});
+    auto dev_opt = m_devices.get_device_by_key(std::string{dev_key});
 
     // Fetch all mappings for the connected device once instead of querying per user.
     std::unordered_map<int, DeviceUserMapping> mappings_by_user;
     if (dev_opt) {
-        for (const auto& mapping : m_database.get_device_user_mappings_by_device(dev_opt->id)) {
+        for (const auto& mapping : m_devices.get_device_user_mappings_by_device(dev_opt->id)) {
             mappings_by_user.insert_or_assign(mapping.user_id, mapping);
         }
     }
@@ -62,7 +64,7 @@ auto HealthManager::get_users_locked() const -> std::vector<UserProfile> {
 
 void HealthManager::update_user(const UserProfile& user) {
     std::scoped_lock const lock(m_mutex);
-    m_database.update_user(user);
+    m_users.update_user(user);
 }
 
 void HealthManager::recalculate_measurements(int user_id) {
@@ -80,9 +82,9 @@ void HealthManager::recalculate_measurements_locked(int user_id) {
     }
     const auto& user = *user_iterator;
 
-    auto measurements = m_database.get_measurements(user_id);
+    auto measurements = m_measurements.get_measurements(user_id);
     for (const auto& measurement : measurements) {
-        auto raw_opt = m_database.get_scale_raw_data(measurement.id);
+        auto raw_opt = m_measurements.get_scale_raw_data(measurement.id);
         if (raw_opt) {
             RawMeasurement raw;
             std::chrono::year_month_day const ymd{
@@ -96,7 +98,7 @@ void HealthManager::recalculate_measurements_locked(int user_id) {
 
             ImpedancePathway pathway = ImpedancePathway::HandToFoot;
             if (measurement.device_id) {
-                auto dev_opt = m_database.get_device(*measurement.device_id);
+                auto dev_opt = m_devices.get_device(*measurement.device_id);
                 if (dev_opt) {
                     pathway = dev_opt->pathway;
                 }
@@ -108,7 +110,7 @@ void HealthManager::recalculate_measurements_locked(int user_id) {
                 new_meas.id = measurement.id;
                 new_meas.date = measurement.date;
                 new_meas.device_id = measurement.device_id;
-                m_database.add_measurement(new_meas);
+                m_measurements.add_measurement(new_meas);
             }
         }
     }
@@ -116,24 +118,24 @@ void HealthManager::recalculate_measurements_locked(int user_id) {
 
 void HealthManager::delete_user(int user_id) {
     std::scoped_lock const lock(m_mutex);
-    m_database.delete_user(user_id);
+    m_users.delete_user(user_id);
 }
 
 auto HealthManager::get_measurements(int user_id) const -> std::vector<Measurement> {
     std::scoped_lock const lock(m_mutex);
-    return m_database.get_measurements(user_id);
+    return m_measurements.get_measurements(user_id);
 }
 
 auto HealthManager::get_measurements_range(int user_id, std::chrono::year_month_day start_date,
                                            std::chrono::year_month_day end_date) const
     -> std::vector<Measurement> {
     std::scoped_lock const lock(m_mutex);
-    return m_database.get_measurements_range(user_id, start_date, end_date);
+    return m_measurements.get_measurements_range(user_id, start_date, end_date);
 }
 
 auto HealthManager::ensure_device_registered() -> int {
     std::string_view const dev_key = m_device.get_device_key();
-    auto dev_opt = m_database.get_device_by_key(std::string{dev_key});
+    auto dev_opt = m_devices.get_device_by_key(std::string{dev_key});
     if (dev_opt) {
         return dev_opt->id;
     }
@@ -142,7 +144,7 @@ auto HealthManager::ensure_device_registered() -> int {
     new_dev.name = m_device.get_device_name();
     new_dev.device_key = std::string{dev_key};
     new_dev.pathway = m_device.get_impedance_pathway();
-    return m_database.add_device(new_dev);
+    return m_devices.add_device(new_dev);
 }
 
 void HealthManager::start_sync(std::function<void(SyncResult)> callback) {
@@ -177,7 +179,7 @@ void HealthManager::process_sync_results(int device_id, const SyncResult& result
     // 1. Reconcile users discovered on the scale. A profile is only linked automatically when
     // its name matches exactly one local profile; ambiguous or unknown names are left for the
     // user to reconcile through associate_scale_user().
-    auto all_existing_users = m_database.get_users();
+    auto all_existing_users = m_users.get_users();
 
     for (const auto& user : result.new_users) {
         std::vector<int> matching_user_ids;
@@ -191,7 +193,7 @@ void HealthManager::process_sync_results(int device_id, const SyncResult& result
         }
 
         int const user_id = matching_user_ids.front();
-        const auto existing_mappings = m_database.get_device_user_mappings(user_id);
+        const auto existing_mappings = m_devices.get_device_user_mappings(user_id);
         bool const already_mapped = std::ranges::any_of(
             existing_mappings, [&](const DeviceUserMapping& device_mapping) -> bool {
                 return device_mapping.device_id == device_id;
@@ -203,7 +205,7 @@ void HealthManager::process_sync_results(int device_id, const SyncResult& result
             mapping.device_id = device_id;
             mapping.slot_id = user.slot_id;
             mapping.device_user_id = user.device_user_id;
-            m_database.add_device_user_mapping(mapping);
+            m_devices.add_device_user_mapping(mapping);
         }
     }
 
@@ -222,7 +224,7 @@ void HealthManager::process_sync_results(int device_id, const SyncResult& result
             Measurement measurement = sync_meas.measurement;
             measurement.user_id = it_user->second;
             measurement.device_id = device_id;
-            m_database.add_measurement(measurement);
+            m_measurements.add_measurement(measurement);
         }
     }
 }
@@ -231,7 +233,7 @@ void HealthManager::associate_scale_user(const UserProfile& scale_user, std::opt
                                          const SyncResult& result) {
     std::scoped_lock const lock(m_mutex);
     const int device_id = ensure_device_registered();
-    const int target_user_id = user_id ? *user_id : m_database.add_user(scale_user);
+    const int target_user_id = user_id ? *user_id : m_users.add_user(scale_user);
 
     // Register DeviceUserMapping for this user
     DeviceUserMapping mapping;
@@ -239,7 +241,7 @@ void HealthManager::associate_scale_user(const UserProfile& scale_user, std::opt
     mapping.device_id = device_id;
     mapping.slot_id = scale_user.slot_id;
     mapping.device_user_id = scale_user.device_user_id;
-    m_database.add_device_user_mapping(mapping);
+    m_devices.add_device_user_mapping(mapping);
 
     // Save their measurements
     for (const auto& sync_meas : result.measurements) {
@@ -247,7 +249,7 @@ void HealthManager::associate_scale_user(const UserProfile& scale_user, std::opt
             Measurement measurement = sync_meas.measurement;
             measurement.user_id = target_user_id;
             measurement.device_id = device_id;
-            m_database.add_measurement(measurement);
+            m_measurements.add_measurement(measurement);
         }
     }
 }
@@ -276,12 +278,12 @@ void HealthManager::stop_sync() {
 
 auto HealthManager::get_devices() const -> std::vector<Device> {
     std::scoped_lock const lock(m_mutex);
-    return m_database.get_devices();
+    return m_devices.get_devices();
 }
 
 void HealthManager::update_device(const Device& device) {
     std::scoped_lock const lock(m_mutex);
-    m_database.update_device(device);
+    m_devices.update_device(device);
 }
 
 void HealthManager::recalculate_device_measurements(int device_id) {
@@ -292,7 +294,7 @@ void HealthManager::recalculate_device_measurements(int device_id) {
 void HealthManager::recalculate_device_measurements_locked(int device_id) {
     auto users = get_users_locked();
     for (const auto& user : users) {
-        auto measurements = m_database.get_measurements(user.id);
+        auto measurements = m_measurements.get_measurements(user.id);
         bool const has_device_measurement =
             std::ranges::any_of(measurements, [device_id](const Measurement& measurement) -> bool {
                 return measurement.device_id && *measurement.device_id == device_id;

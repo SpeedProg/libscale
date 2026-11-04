@@ -179,7 +179,9 @@ class HealthManager {
      */
     void process_sync_results(int device_id, const SyncResult& result);
 
-    IDatabaseManager& m_database;
+    IUserRepository& m_users;
+    IMeasurementRepository& m_measurements;
+    IDeviceRepository& m_devices;
     IScaleDevice& m_device;
     std::unique_ptr<IBioImpedanceCalculator> m_calculator;
     mutable std::mutex m_mutex;
