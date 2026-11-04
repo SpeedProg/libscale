@@ -141,9 +141,11 @@ class FakeDatabaseManager : public IDatabaseManager {
     /**
      * @brief Adds a new measurement.
      * @param measurement The measurement to add.
+     * @return The stored timestamp (the fake never adjusts timestamps).
      */
-    void add_measurement(const Measurement& measurement) override {
+    auto add_measurement(const Measurement& measurement) -> std::chrono::sys_seconds override {
         measurements.push_back(measurement);
+        return measurement.date;
     }
 
     /**

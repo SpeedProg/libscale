@@ -84,8 +84,10 @@ class SqliteDatabaseManager : public IDatabaseManager {
     /**
      * @brief Inserts a new measurement record into the SQLite database.
      * @param measurement Computed measurement record to store.
+     * @return The effective stored timestamp, which may differ from the requested date when a
+     * collision was resolved or an identical record was skipped.
      */
-    void add_measurement(const Measurement& measurement) override;
+    auto add_measurement(const Measurement& measurement) -> std::chrono::sys_seconds override;
 
     /**
      * @brief Inserts raw Comfort Select biometric impedance data linked to a measurement record.

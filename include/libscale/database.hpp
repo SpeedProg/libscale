@@ -83,9 +83,13 @@ class IDatabaseManager {
 
     /**
      * @brief Inserts a new measurement record into the database.
+     * If a different measurement already exists for the same user at the same second, the
+     * timestamp is shifted by whole seconds until a free slot is found to keep both records.
      * @param measurement The computed measurement struct.
+     * @return The effective stored timestamp, which may differ from the requested date when a
+     * collision was resolved or an identical record was skipped.
      */
-    virtual void add_measurement(const Measurement& measurement) = 0;
+    virtual auto add_measurement(const Measurement& measurement) -> std::chrono::sys_seconds = 0;
 
     /**
      * @brief Inserts raw Comfort Select biometric impedance data linked to a measurement record.

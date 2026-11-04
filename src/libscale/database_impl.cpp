@@ -233,10 +233,15 @@ auto SqliteDatabaseManager::get_measurements_range(int user_id, std::chrono::yea
     -> std::vector<Measurement> {
     std::shared_lock const lock(m_mutex);
     using namespace sqlite_orm;
+    // Stored timestamps include a time component ("YYYY-MM-DD HH:MM:SS"), so the inclusive end
+    // date must be compared against the start of the following day.
+    auto const end_exclusive =
+        std::chrono::sys_seconds{std::chrono::sys_days{end} + std::chrono::days{1}};
     return get_storage(m_impl->storage.get())
-        .get_all<Measurement>(where(c(&Measurement::user_id) == user_id &&
-                                    c(&Measurement::date) >= start && c(&Measurement::date) <= end),
-                              order_by(&Measurement::date));
+        .get_all<Measurement>(
+            where(c(&Measurement::user_id) == user_id && c(&Measurement::date) >= start &&
+                  c(&Measurement::date) < end_exclusive),
+            order_by(&Measurement::date));
 }
 
 namespace {
@@ -279,10 +284,12 @@ auto compare_measurements(const Measurement& existing_meas, const Measurement& i
 }
 }  // namespace
 
-void SqliteDatabaseManager::add_measurement(const Measurement& measurement) {
+auto SqliteDatabaseManager::add_measurement(const Measurement& measurement)
+    -> std::chrono::sys_seconds {
     std::unique_lock const lock(m_mutex);
     using namespace sqlite_orm;
     auto& storage = get_storage(m_impl->storage.get());
+    std::chrono::sys_seconds stored_date = measurement.date;
     storage.transaction([&]() -> bool {
         int inserted_id = measurement.id;
         if (inserted_id == 0) {
@@ -297,9 +304,11 @@ void SqliteDatabaseManager::add_measurement(const Measurement& measurement) {
                     Measurement new_meas = measurement;
                     new_meas.date = adjusted_date;
                     inserted_id = storage.insert(new_meas);
+                    stored_date = adjusted_date;
                     found_slot = true;
                 } else {
                     if (compare_measurements(existing.front(), measurement, storage)) {
+                        stored_date = existing.front().date;
                         return true;  // Skip redundant write
                     }
                     adjusted_date += std::chrono::seconds(1);
@@ -318,6 +327,7 @@ void SqliteDatabaseManager::add_measurement(const Measurement& measurement) {
         }
         return true;
     });
+    return stored_date;
 }
 
 void SqliteDatabaseManager::add_scale_raw_data(const ScaleRawData& raw_data) {
