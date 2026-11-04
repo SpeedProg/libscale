@@ -333,20 +333,33 @@ void MainWindow::update_range_button_selection(int days) {
 void MainWindow::on_sync_clicked() {
     m_status_label->set_text("Syncing...");
     m_sync_button->set_sensitive(false);
-    m_manager.start_sync([this](const SyncResult& result) -> void {
-        m_last_sync_result = result;
-        m_sync_complete_dispatcher.emit();
+
+    bool const started = try_operation("Scale synchronization", [this]() -> void {
+        m_manager.start_sync([this](const SyncResult& result) -> void {
+            m_last_sync_result = result;
+            m_sync_complete_dispatcher.emit();
+        });
     });
+
+    if (!started) {
+        m_status_label->set_text("Sync failed");
+        m_sync_button->set_sensitive(true);
+    }
 }
 
 void MainWindow::on_sync_complete(const SyncResult& result) {
     m_sync_button->set_sensitive(true);
-    if (result.success) {
-        m_status_label->set_text("Sync complete");
-        m_pending_reconciliation_users = m_manager.get_unmapped_scale_users(result);
-        prompt_next_user_reconciliation();
-    } else {
+    if (!result.success) {
         m_status_label->set_text("Error: " + result.error_message);
+        return;
+    }
+
+    m_status_label->set_text("Sync complete");
+    bool const prepared = try_operation("Preparing sync results", [this, &result]() -> void {
+        m_pending_reconciliation_users = m_manager.get_unmapped_scale_users(result);
+    });
+    if (prepared) {
+        prompt_next_user_reconciliation();
     }
 }
 
@@ -368,7 +381,10 @@ void MainWindow::refresh_user_list() {
     while (auto* row = m_user_list->get_row_at_index(0)) {
         m_user_list->remove(*row);
     }
-    m_users = m_manager.get_users();
+    if (!try_operation("Refreshing user list",
+                       [this]() -> void { m_users = m_manager.get_users(); })) {
+        return;
+    }
     for (const auto& user : m_users) {
         m_user_list->append(*Gtk::make_managed<Gtk::Label>(user.name));
     }
@@ -392,7 +408,9 @@ void MainWindow::refresh_user_list() {
 }
 
 void MainWindow::load_user_data(int user_id) {
-    m_view_model.set_data(m_manager.get_measurements(user_id));
+    try_operation("Loading measurements", [this, user_id]() -> void {
+        m_view_model.set_data(m_manager.get_measurements(user_id));
+    });
 }
 
 void MainWindow::on_metric_clicked(MetricType type) {
@@ -592,6 +610,18 @@ void MainWindow::show_error_dialog(
     m_error_dialog->show();
 }
 
+auto MainWindow::try_operation(const std::string& action, const std::function<void()>& operation)
+    -> bool {
+    try {
+        operation();
+        return true;
+    } catch (const std::exception& error) {
+        spdlog::error("{} failed: {}", action, error.what());
+        show_error_dialog("Operation Failed", std::format("{} failed:\n{}", action, error.what()));
+        return false;
+    }
+}
+
 void MainWindow::check_missing_waist_circumferences() {
     m_users_needing_waist.clear();
     for (const auto& user : m_users) {
@@ -618,7 +648,12 @@ void MainWindow::prompt_next_missing_waist() {
             }
             UserProfile updated_user = user;
             updated_user.waist_circumference = waist;
-            m_manager.update_user(updated_user);
+            if (!try_operation("Updating user profile", [this, &updated_user]() -> void {
+                    m_manager.update_user(updated_user);
+                })) {
+                prompt_next_missing_waist();
+                return;
+            }
             refresh_user_list();
             prompt_recalculate_history(updated_user,
                                        [this]() -> void { prompt_next_missing_waist(); });
@@ -644,23 +679,29 @@ void MainWindow::prompt_recalculate_history(const UserProfile& user,
 }
 
 void MainWindow::prompt_waist_change(const UserProfile& user) {
-    prompt_waist_circumference(*this, user.name, m_settings.get_unit_system(),
-                               user.waist_circumference,
-                               [this, user](std::optional<libscale::units::Cm> waist) -> void {
-                                   if (!waist) {
-                                       return;
-                                   }
-                                   UserProfile updated_user = user;
-                                   updated_user.waist_circumference = waist;
-                                   m_manager.update_user(updated_user);
-                                   refresh_user_list();
-                                   prompt_recalculate_history(updated_user, nullptr);
-                               });
+    prompt_waist_circumference(
+        *this, user.name, m_settings.get_unit_system(), user.waist_circumference,
+        [this, user](std::optional<libscale::units::Cm> waist) -> void {
+            if (!waist) {
+                return;
+            }
+            UserProfile updated_user = user;
+            updated_user.waist_circumference = waist;
+            if (!try_operation("Updating user profile", [this, &updated_user]() -> void {
+                    m_manager.update_user(updated_user);
+                })) {
+                return;
+            }
+            refresh_user_list();
+            prompt_recalculate_history(updated_user, nullptr);
+        });
 }
 
 void MainWindow::recalculate_user_history(int user_id) {
-    m_manager.recalculate_measurements(user_id);
-    load_user_data(user_id);
+    if (try_operation("Recalculating measurements",
+                      [this, user_id]() -> void { m_manager.recalculate_measurements(user_id); })) {
+        load_user_data(user_id);
+    }
 }
 
 void MainWindow::prompt_next_user_reconciliation() {
@@ -676,8 +717,14 @@ void MainWindow::prompt_next_user_reconciliation() {
     UserProfile const scale_user = m_pending_reconciliation_users.front();
     m_pending_reconciliation_users.erase(m_pending_reconciliation_users.begin());
 
+    std::vector<UserProfile> all_users;
+    if (!try_operation("Loading user profiles",
+                       [this, &all_users]() -> void { all_users = m_manager.get_users(); })) {
+        return;
+    }
+
     std::vector<UserProfile> linkable_users;
-    for (const auto& local_user : m_manager.get_users()) {
+    for (const auto& local_user : all_users) {
         if (local_user.device_user_id.empty()) {
             linkable_users.push_back(local_user);
         }
@@ -687,7 +734,9 @@ void MainWindow::prompt_next_user_reconciliation() {
         *this, scale_user, linkable_users,
         [this, scale_user](bool accepted, std::optional<int> user_id) -> void {
             if (accepted) {
-                m_manager.associate_scale_user(scale_user, user_id, m_last_sync_result);
+                try_operation("Linking scale profile", [this, scale_user, user_id]() -> void {
+                    m_manager.associate_scale_user(scale_user, user_id, m_last_sync_result);
+                });
             }
             Glib::signal_idle().connect_once([this]() -> void {
                 m_active_dialog.reset();
@@ -702,7 +751,10 @@ void MainWindow::refresh_device_list() {
         m_devices_list->remove(*row);
     }
 
-    m_devices = m_manager.get_devices();
+    if (!try_operation("Refreshing device list",
+                       [this]() -> void { m_devices = m_manager.get_devices(); })) {
+        return;
+    }
     for (const auto& device_item : m_devices) {
         m_devices_list->append(*Gtk::make_managed<Gtk::Label>(device_item.name));
     }
@@ -795,7 +847,11 @@ void MainWindow::on_device_save_clicked() {
     updated_device.name = name;
     updated_device.pathway = pathway;
 
-    m_manager.update_device(updated_device);
+    if (!try_operation("Saving device", [this, &updated_device]() -> void {
+            m_manager.update_device(updated_device);
+        })) {
+        return;
+    }
     m_selected_device = updated_device;
 
     refresh_device_list();
@@ -811,7 +867,9 @@ void MainWindow::on_device_save_clicked() {
                 if (!confirmed) {
                     return;
                 }
-                m_manager.recalculate_device_measurements(device_id);
+                try_operation("Recalculating measurements", [this, device_id]() -> void {
+                    m_manager.recalculate_device_measurements(device_id);
+                });
                 if (m_current_user) {
                     load_user_data(m_current_user->id);
                     update_profile_view();

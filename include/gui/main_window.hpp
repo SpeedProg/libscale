@@ -137,6 +137,16 @@ class MainWindow : public Gtk::ApplicationWindow {
         const std::string& title,
         const std::string& message) /* NOLINT(bugprone-easily-swappable-parameters) */;
 
+    /**
+     * @brief Executes an operation and reports any failure through an error dialog.
+     * Exceptions must never escape GTK signal handlers, so manager calls are routed through this
+     * helper instead of propagating into the C call stack.
+     * @param action Human-readable description used in the log and error message.
+     * @param operation The operation to execute.
+     * @return True when the operation completed successfully.
+     */
+    auto try_operation(const std::string& action, const std::function<void()>& operation) -> bool;
+
     // ViewModel integration
     void on_view_model_changed();
     void update_range_button_selection(int days);
