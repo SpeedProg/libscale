@@ -12,19 +12,29 @@
 namespace libscale {
 
 namespace {
-auto run_smoke_test() -> void {
+auto smoke_test_db_path() -> const std::filesystem::path& {
+    static const std::filesystem::path path =
+        std::filesystem::temp_directory_path() / "libscale_smoke_test.db";
+    return path;
+}
+
+auto smoke_test_backup_path() -> std::filesystem::path {
+    auto backup = smoke_test_db_path();
+    backup += ".tmp_backup";
+    return backup;
+}
+
+auto run_smoke_test() -> bool {
     std::cout << "Starting CLI Smoke Test...\n";
 
     // 1. Initialize Database
     SqliteDatabaseManager database;
-    const std::string db_path = "smoke_test.db";
-    if (std::filesystem::exists(db_path)) {
-        std::filesystem::remove(db_path);
-    }
+    auto const& db_path = smoke_test_db_path();
+    std::filesystem::remove(db_path);
 
     if (!database.initialize(db_path)) {
         std::cerr << "Failed to initialize database.\n";
-        return;
+        return false;
     }
     std::cout << "Database initialized.\n";
 
@@ -70,25 +80,34 @@ auto run_smoke_test() -> void {
     const auto users = manager.get_users();
     if (users.empty() || users[0].name != "Test User") {
         std::cerr << "User creation failed.\n";
-        return;
+        return false;
     }
     std::cout << "User creation verified: " << users[0].name << "\n";
 
     // 5. Test History Retrieval (should be empty)
     const auto history = manager.get_measurements(users[0].id);
     std::cout << "History retrieval verified (Count: " << history.size() << ")\n";
+    if (!history.empty()) {
+        std::cerr << "Expected no measurements for a freshly created user.\n";
+        return false;
+    }
 
     std::cout << "CLI Smoke Test PASSED!\n";
+    return true;
 }
 }  // namespace
 }  // namespace libscale
 
 auto main() -> int {
+    int exit_code = 0;
     try {
-        libscale::run_smoke_test();
-        return 0;
+        exit_code = libscale::run_smoke_test() ? 0 : 1;
     } catch (const std::exception& error) {
         std::cerr << "Error: " << error.what() << "\n";
-        return 1;
+        exit_code = 1;
     }
+
+    std::filesystem::remove(libscale::smoke_test_db_path());
+    std::filesystem::remove(libscale::smoke_test_backup_path());
+    return exit_code;
 }

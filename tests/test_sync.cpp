@@ -124,7 +124,7 @@ class FakeDatabaseManager : public IDatabaseManager {
     }
 
     /**
-     * @brief Gets all measurements for a user within a range.
+     * @brief Gets all measurements for a user within an inclusive date range.
      * @param user_id The ID of the user.
      * @param start Start of the range.
      * @param end End of the range.
@@ -133,9 +133,19 @@ class FakeDatabaseManager : public IDatabaseManager {
     [[nodiscard]] auto get_measurements_range(int user_id, std::chrono::year_month_day start,
                                               std::chrono::year_month_day end) const
         -> std::vector<Measurement> override {
-        (void)start;
-        (void)end;
-        return get_measurements(user_id);
+        auto const start_days = std::chrono::sys_days{start};
+        auto const end_days = std::chrono::sys_days{end};
+        std::vector<Measurement> result;
+        for (const auto& measurement : measurements) {
+            if (measurement.user_id != user_id) {
+                continue;
+            }
+            auto const measurement_days = std::chrono::floor<std::chrono::days>(measurement.date);
+            if (measurement_days >= start_days && measurement_days <= end_days) {
+                result.push_back(measurement);
+            }
+        }
+        return result;
     }
 
     /**
