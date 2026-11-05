@@ -19,9 +19,7 @@ class ScaleProviderFactory {
      */
     enum class ProviderType : std::uint8_t {
         /// Physical USB scale (using libusb)
-        UsbComfortSelect,
-        /// Mock/Simulated scale for offline usage or testing
-        MockSimulation
+        UsbComfortSelect
     };
 
     ScaleProviderFactory() = delete;
@@ -41,8 +39,6 @@ class ScaleProviderFactory {
         switch (type) {
             case ProviderType::UsbComfortSelect:
                 return std::make_unique<UsbScaleDevice>();
-            case ProviderType::MockSimulation:
-                throw std::runtime_error("Mock Scale simulation is not yet implemented.");
             default:
                 throw std::invalid_argument("Unsupported Scale Provider Type.");
         }

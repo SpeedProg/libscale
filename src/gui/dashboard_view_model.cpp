@@ -1,7 +1,5 @@
 #include "gui/dashboard_view_model.hpp"
 
-#include <bits/chrono.h>
-
 #include <algorithm>
 #include <chrono>
 #include <cstddef>

@@ -637,7 +637,14 @@ struct row_extractor<std::chrono::year_month_day> {
         if (ec3 != std::errc{}) {
             return {};
         }
-        return std::chrono::year(year_val) / month_val / day_val;
+
+        std::chrono::year_month_day const ymd{
+            std::chrono::year(year_val), std::chrono::month(static_cast<unsigned int>(month_val)),
+            std::chrono::day(static_cast<unsigned int>(day_val))};
+        if (!ymd.ok()) {
+            return {};
+        }
+        return ymd;
     }
 };
 

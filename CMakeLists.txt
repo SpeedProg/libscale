@@ -105,12 +105,6 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTKMM REQUIRED gtkmm-4.0 fontconfig)
 
-# Localization support
-find_package(Gettext)
-if(GETTEXT_FOUND)
-    add_definitions(-DENABLE_NLS)
-endif()
-
 # Build libscale (Core)
 add_subdirectory(src/libscale)
 

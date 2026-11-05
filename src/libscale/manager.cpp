@@ -1,7 +1,5 @@
 #include "libscale/manager.hpp"
 
-#include <bits/chrono.h>
-
 #include <algorithm>
 #include <chrono>
 #include <functional>
