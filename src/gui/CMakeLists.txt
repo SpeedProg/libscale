@@ -18,15 +18,22 @@ target_include_directories(comfort_select_dashboard PRIVATE
 # Find spdlog and its dependencies (like fmt)
 find_package(spdlog REQUIRED)
 
+# GUI code uses sigc++ signals directly; libscale no longer propagates sigc++.
+pkg_check_modules(SIGCPP REQUIRED sigc++-3.0)
+
 target_link_libraries(comfort_select_dashboard PRIVATE 
     libscale
     ${GTKMM_LIBRARIES}
     spdlog::spdlog
+    ${SIGCPP_LIBRARIES}
 )
 
 # GTKmm include dirs are already in GTKMM_LIBRARIES if using pkg_check_modules with IMPORTED_TARGET
 # but root CMakeLists.txt didn't use IMPORTED_TARGET for GTKMM.
-target_include_directories(comfort_select_dashboard SYSTEM PRIVATE ${GTKMM_INCLUDE_DIRS})
+target_include_directories(comfort_select_dashboard SYSTEM PRIVATE
+    ${GTKMM_INCLUDE_DIRS}
+    ${SIGCPP_INCLUDE_DIRS}
+)
 
 # Install UI and CSS files
 configure_file(${CMAKE_SOURCE_DIR}/ui/main_window.ui ${CMAKE_BINARY_DIR}/ui/main_window.ui COPYONLY)

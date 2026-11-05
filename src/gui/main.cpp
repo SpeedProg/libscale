@@ -1,6 +1,5 @@
 #include <glibmm/miscutils.h>
 #include <gtkmm/application.h>
-#include <sigc++/functors/mem_fun.h>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
@@ -77,16 +76,16 @@ auto main(int argc, char* argv[]) -> int {
             settings.load(data_dir + "/settings.json");
 
             // Create and show window
-            auto* window = comfort_select::MainWindow::create(manager, settings);
+            auto* window = comfort_select::MainWindow::create(manager, settings, *device);
             app->add_window(*window);
             window->set_visible(true);
 
             // Connect physical device hotplug arrival events to the UI thread-safely.
             // Since the USB hotplug event thread runs in the background, we must bridge
-            // the event to the main GTK thread via MainWindow's dispatcher. The sigc::mem_fun
-            // connection is tracked, so it disconnects if the window is ever destroyed.
-            device->signal_device_arrived().connect(
-                sigc::mem_fun(*window, &comfort_select::MainWindow::notify_device_arrived));
+            // the event to the main GTK thread via MainWindow's dispatcher.
+            // MainWindow's destructor detaches this callback before the window disappears.
+            device->set_device_arrived_callback(
+                [window]() -> void { window->notify_device_arrived(); });
         } catch (const std::exception& error) {
             std::cerr << "Fatal error during startup: " << error.what() << '\n';
             std::exit(1);  // NOLINT(concurrency-mt-unsafe): Terminating the process on fatal

@@ -85,9 +85,11 @@ class MainWindow : public Gtk::ApplicationWindow {
      * @param builder Gtk::Builder instance parsing the UI XML templates.
      * @param manager health manager orchestrator reference.
      * @param settings_manager persistence manager reference.
+     * @param device Scale device whose arrival notifications are bridged to the UI.
      */
     MainWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder,
-               HealthManager& manager, ISettingsManager& settings_manager);
+               HealthManager& manager, ISettingsManager& settings_manager,
+               libscale::IScaleDevice& device);
 
     /**
      * @brief Destructor. Disconnects hardware hotplug signals.
@@ -103,9 +105,11 @@ class MainWindow : public Gtk::ApplicationWindow {
      * @brief Factory method constructing and instantiating the MainWindow from GTK4 Builder XML.
      * @param manager health manager reference.
      * @param settings_manager persistence manager reference.
+     * @param device Scale device whose arrival notifications are bridged to the UI.
      * @return Pointer to the allocated MainWindow object.
      */
-    static auto create(HealthManager& manager, ISettingsManager& settings_manager) -> MainWindow*;
+    static auto create(HealthManager& manager, ISettingsManager& settings_manager,
+                       libscale::IScaleDevice& device) -> MainWindow*;
 
     /**
      * @brief Triggers the internal hotplug dispatcher to notify the main window of device arrival.
@@ -182,6 +186,7 @@ class MainWindow : public Gtk::ApplicationWindow {
 
     HealthManager& m_manager;
     ISettingsManager& m_settings;
+    libscale::IScaleDevice& m_device;
     DashboardViewModel m_view_model;
 
     Glib::Dispatcher m_hotplug_dispatcher;

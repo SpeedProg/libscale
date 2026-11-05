@@ -18,9 +18,12 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <mutex>
 #include <stop_token>
 #include <string>
 #include <thread>
+#include <utility>
 
 #include "libscale/device.hpp"
 #include "libscale/types.hpp"
@@ -79,142 +82,338 @@ auto from_be(std::span<const uint8_t> data, size_t offset) -> T {
     }
     return val;
 }
+
+/**
+ * @brief Custom RAII deleter for managing libusb context and device handles.
+ */
+struct LibUsbDeleter {
+    /**
+     * @brief Exits the libusb context.
+     * @param ctx Pointer to the libusb context.
+     */
+    void operator()(libusb_context* ctx) const {
+        if (ctx != nullptr) {
+            libusb_exit(ctx);
+        }
+    }
+    /**
+     * @brief Closes the libusb device handle.
+     * @param handle Pointer to the device handle.
+     */
+    void operator()(libusb_device_handle* handle) const {
+        if (handle != nullptr) {
+            libusb_close(handle);
+        }
+    }
+};
+
+/**
+ * @brief RAII wrapper for registering/deregistering hotplug callback handles in libusb.
+ */
+class HotplugHandle {
+   public:
+    /**
+     * @brief Default constructor.
+     */
+    HotplugHandle() = default;
+
+    /**
+     * @brief Constructs a HotplugHandle representing an active registered hotplug callback.
+     * @param ctx Libusb context.
+     * @param handle Callback handle.
+     */
+    HotplugHandle(libusb_context* ctx, libusb_hotplug_callback_handle handle) noexcept
+        : m_ctx(ctx), m_handle(handle) {}
+
+    /**
+     * @brief Destructor. Deregisters the hotplug callback from libusb context.
+     */
+    ~HotplugHandle() {
+        reset();
+    }
+
+    HotplugHandle(const HotplugHandle&) = delete;
+    auto operator=(const HotplugHandle&) -> HotplugHandle& = delete;
+
+    /**
+     * @brief Move constructor.
+     * @param other The handle to move from.
+     */
+    HotplugHandle(HotplugHandle&& other) noexcept {
+        std::scoped_lock const lock(other.m_mutex);
+        m_ctx = other.m_ctx;        // NOLINT(cppcoreguidelines-prefer-member-initializer)
+        m_handle = other.m_handle;  // NOLINT(cppcoreguidelines-prefer-member-initializer)
+        other.m_ctx = nullptr;
+        other.m_handle = 0;
+    }
+
+    /**
+     * @brief Move assignment operator.
+     * @param other The handle to move from.
+     * @return Reference to this HotplugHandle.
+     */
+    auto operator=(HotplugHandle&& other) noexcept -> HotplugHandle& {
+        if (this != &other) {
+            std::scoped_lock const lock(m_mutex, other.m_mutex);
+
+            reset_internal();
+            m_ctx = other.m_ctx;
+            m_handle = other.m_handle;
+            other.m_ctx = nullptr;
+            other.m_handle = 0;
+        }
+        return *this;
+    }
+
+    /**
+     * @brief Deregisters the hotplug callback if registered.
+     */
+    void reset() noexcept {
+        std::scoped_lock const lock(m_mutex);
+        reset_internal();
+    }
+
+   private:
+    void reset_internal() noexcept {
+        if ((m_ctx != nullptr) && m_handle != 0) {
+            libusb_hotplug_deregister_callback(m_ctx, m_handle);
+        }
+        m_ctx = nullptr;
+        m_handle = 0;
+    }
+
+    libusb_context* m_ctx = nullptr;
+    libusb_hotplug_callback_handle m_handle = 0;
+    mutable std::mutex m_mutex;
+};
 }  // namespace
 
-UsbScaleDevice::UsbScaleDevice() {
-    libusb_context* ctx_raw = nullptr;
-    int ret = libusb_init(&ctx_raw);
-    if (ret != LIBUSB_SUCCESS) {
-        throw std::runtime_error(
-            std::format("Failed to initialize libusb: {}", libusb_error_name(ret)));
+class UsbScaleDevice::Impl {
+   public:
+    Impl() {
+        libusb_context* ctx_raw = nullptr;
+        int ret = libusb_init(&ctx_raw);
+        if (ret != LIBUSB_SUCCESS) {
+            throw std::runtime_error(
+                std::format("Failed to initialize libusb: {}", libusb_error_name(ret)));
+        }
+        m_ctx.reset(ctx_raw);
+
+        if (libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG) != 0) {
+            libusb_hotplug_callback_handle handle = 0;
+            ret = libusb_hotplug_register_callback(
+                m_ctx.get(), LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, LIBUSB_HOTPLUG_ENUMERATE, vid,
+                pid, LIBUSB_HOTPLUG_MATCH_ANY, &Impl::hotplug_callback, this, &handle);
+
+            if (ret == LIBUSB_SUCCESS) {
+                m_hotplug = HotplugHandle(m_ctx.get(), handle);
+            }
+
+            // Start polling thread with C++20 stop_token
+            m_event_thread = std::jthread([this](const std::stop_token& stop_token) -> void {
+                while (!stop_token.stop_requested()) {
+                    struct timeval time_val = {.tv_sec = 1, .tv_usec = 0};
+                    int const ret_evt =
+                        libusb_handle_events_timeout_completed(m_ctx.get(), &time_val, nullptr);
+                    if (ret_evt < 0 && ret_evt != LIBUSB_ERROR_INTERRUPTED) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(polling_interval_ms));
+                    }
+                }
+            });
+        }
     }
-    m_ctx.reset(ctx_raw);
 
-    if (libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG) != 0) {
-        libusb_hotplug_callback_handle handle = 0;
-        ret = libusb_hotplug_register_callback(
-            m_ctx.get(), LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, LIBUSB_HOTPLUG_ENUMERATE, vid, pid,
-            LIBUSB_HOTPLUG_MATCH_ANY, &UsbScaleDevice::hotplug_callback, this, &handle);
+    ~Impl() {
+        disconnect();
+    }
 
-        if (ret == LIBUSB_SUCCESS) {
-            m_hotplug = HotplugHandle(m_ctx.get(), handle);
+    Impl(const Impl&) = delete;
+    auto operator=(const Impl&) -> Impl& = delete;
+    Impl(Impl&&) = delete;
+    auto operator=(Impl&&) -> Impl& = delete;
+
+    auto connect() -> bool {
+        if (m_handle) {
+            return true;
         }
 
-        // Start polling thread with C++20 stop_token
-        m_event_thread = std::jthread([this](const std::stop_token& stop_token) -> void {
-            while (!stop_token.stop_requested()) {
-                struct timeval time_val = {.tv_sec = 1, .tv_usec = 0};
-                int const ret_evt =
-                    libusb_handle_events_timeout_completed(m_ctx.get(), &time_val, nullptr);
-                if (ret_evt < 0 && ret_evt != LIBUSB_ERROR_INTERRUPTED) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(polling_interval_ms));
-                }
-            }
-        });
-    }
-}
+        libusb_device_handle* handle_raw = libusb_open_device_with_vid_pid(m_ctx.get(), vid, pid);
+        if (handle_raw == nullptr) {
+            return false;
+        }
+        m_handle.reset(handle_raw);
 
-auto LIBUSB_CALL UsbScaleDevice::hotplug_callback(libusb_context* /*ctx*/, libusb_device* /*dev*/,
-                                                  libusb_hotplug_event /*event*/, void* user_data)
-    -> int {
-    auto* self = static_cast<UsbScaleDevice*>(user_data);
-    self->m_signal_arrived.emit();
-    return 0;
-}
+#ifdef __linux__
+        // Detach kernel driver if necessary (Linux)
+        if (libusb_kernel_driver_active(m_handle.get(), 0) == 1) {
+            libusb_detach_kernel_driver(m_handle.get(), 0);
+        }
+#endif
 
-UsbScaleDevice::~UsbScaleDevice() {
-    cleanup_internal();
-}
+        if (libusb_claim_interface(m_handle.get(), 0) < 0) {
+            disconnect();
+            return false;
+        }
 
-void UsbScaleDevice::cleanup_internal() {
-    if (m_handle) {
-        libusb_release_interface(m_handle.get(), 0);
-        m_handle.reset();
-    }
-}
-
-auto UsbScaleDevice::connect() -> bool {
-    if (m_handle) {
         return true;
     }
 
-    libusb_device_handle* handle_raw = libusb_open_device_with_vid_pid(m_ctx.get(), vid, pid);
-    if (handle_raw == nullptr) {
-        return false;
-    }
-    m_handle.reset(handle_raw);
-
-#ifdef __linux__
-    // Detach kernel driver if necessary (Linux)
-    if (libusb_kernel_driver_active(m_handle.get(), 0) == 1) {
-        libusb_detach_kernel_driver(m_handle.get(), 0);
-    }
-#endif
-
-    if (libusb_claim_interface(m_handle.get(), 0) < 0) {
-        cleanup_internal();
-        return false;
+    void disconnect() {
+        if (m_handle) {
+            libusb_release_interface(m_handle.get(), 0);
+            m_handle.reset();
+        }
     }
 
-    return true;
+    [[nodiscard]] auto is_connected() const -> bool {
+        return m_handle != nullptr;
+    }
+
+    void set_arrival_callback(std::function<void()> callback) {
+        std::scoped_lock const lock(m_callback_mutex);
+        m_arrival_callback = std::move(callback);
+    }
+
+    auto read_users() -> std::vector<UserProfile> {
+        if (m_handle == nullptr) {
+            throw std::runtime_error("Scale is not connected.");
+        }
+
+        // Get size
+        send_command({cmd_user_data, subcmd_get_size, 0x00, 0x00});
+        auto resp = read_response(4);
+        if (resp.size() < 3) {
+            throw std::runtime_error("Unexpected user list response from scale.");
+        }
+
+        auto total_bytes = static_cast<uint16_t>((resp[1] << bits_per_byte) | resp[2]);
+        if (total_bytes == 0) {
+            return {};
+        }
+
+        // Get data
+        send_command({cmd_user_data, subcmd_get_data, resp[1], resp[2]});
+        auto data = read_response(total_bytes);
+        return UsbScaleDevice::parse_users(data);
+    }
+
+    auto read_measurements(const std::string& device_user_id) -> std::vector<RawMeasurement> {
+        if (m_handle == nullptr) {
+            throw std::runtime_error("Scale is not connected.");
+        }
+
+        int slot_id = 0;
+        if (device_user_id.starts_with("slot_")) {
+            try {
+                slot_id = std::stoi(device_user_id.substr(slot_prefix_len));
+            } catch (...) {
+                slot_id = 0;
+            }
+        }
+
+        if (slot_id <= 0) {
+            return {};
+        }
+
+        // Get size
+        send_command({cmd_measurement_data, subcmd_get_size, 0x00, static_cast<uint8_t>(slot_id)});
+        auto resp = read_response(4);
+        if (resp.size() < 3) {
+            throw std::runtime_error("Unexpected measurement list response from scale.");
+        }
+
+        auto total_bytes = static_cast<uint16_t>((resp[1] << bits_per_byte) | resp[2]);
+        if (total_bytes == 0) {
+            return {};
+        }
+
+        // Get data
+        send_command({cmd_measurement_data, subcmd_get_data, resp[2], resp[1],
+                      static_cast<uint8_t>(slot_id)});
+        auto data = read_response(total_bytes);
+        return UsbScaleDevice::parse_measurements(data);
+    }
+
+   private:
+    static auto LIBUSB_CALL hotplug_callback(libusb_context* /*ctx*/, libusb_device* /*dev*/,
+                                             libusb_hotplug_event /*event*/, void* user_data)
+        -> int {
+        auto* self = static_cast<Impl*>(user_data);
+        self->notify_arrived();
+        return 0;
+    }
+
+    void notify_arrived() {
+        // Invoking while holding the lock makes set_arrival_callback(nullptr) a synchronisation
+        // point: once it returns, no callback touching a destroyed consumer can be in flight.
+        std::scoped_lock const lock(m_callback_mutex);
+        if (m_arrival_callback) {
+            m_arrival_callback();
+        }
+    }
+
+    void send_command(std::vector<uint8_t> cmd) {
+        int transferred = 0;
+        int const result =
+            libusb_bulk_transfer(m_handle.get(), endpoint_out, cmd.data(),
+                                 static_cast<int>(cmd.size()), &transferred, usb_timeout_ms);
+        if (result != LIBUSB_SUCCESS) {
+            throw std::runtime_error(
+                std::format("USB command transfer failed: {}", libusb_error_name(result)));
+        }
+        if (transferred != static_cast<int>(cmd.size())) {
+            throw std::runtime_error("USB command transfer was truncated.");
+        }
+    }
+
+    auto read_response(int length) -> std::vector<uint8_t> {
+        std::vector<uint8_t> buffer(length);
+        int transferred = 0;
+        int const result = libusb_bulk_transfer(m_handle.get(), endpoint_in, buffer.data(), length,
+                                                &transferred, usb_timeout_ms);
+        if (result != LIBUSB_SUCCESS) {
+            throw std::runtime_error(
+                std::format("USB response transfer failed: {}", libusb_error_name(result)));
+        }
+        buffer.resize(static_cast<size_t>(transferred));
+        return buffer;
+    }
+
+    std::unique_ptr<libusb_context, LibUsbDeleter> m_ctx;
+    std::unique_ptr<libusb_device_handle, LibUsbDeleter> m_handle;
+    HotplugHandle m_hotplug;
+    std::function<void()> m_arrival_callback;
+    mutable std::mutex m_callback_mutex;
+    std::jthread m_event_thread;
+};
+
+UsbScaleDevice::UsbScaleDevice() : m_impl(std::make_unique<Impl>()) {}
+
+UsbScaleDevice::~UsbScaleDevice() = default;
+
+auto UsbScaleDevice::is_connected() const -> bool {
+    return m_impl->is_connected();
+}
+
+auto UsbScaleDevice::connect() -> bool {
+    return m_impl->connect();
 }
 
 void UsbScaleDevice::disconnect() {
-    cleanup_internal();
-}
-
-auto UsbScaleDevice::is_connected() const -> bool {
-    return m_handle != nullptr;
-}
-
-void UsbScaleDevice::send_command(std::vector<uint8_t> cmd) {
-    int transferred = 0;
-    int const result =
-        libusb_bulk_transfer(m_handle.get(), endpoint_out, cmd.data(), static_cast<int>(cmd.size()),
-                             &transferred, usb_timeout_ms);
-    if (result != LIBUSB_SUCCESS) {
-        throw std::runtime_error(
-            std::format("USB command transfer failed: {}", libusb_error_name(result)));
-    }
-    if (transferred != static_cast<int>(cmd.size())) {
-        throw std::runtime_error("USB command transfer was truncated.");
-    }
-}
-
-auto UsbScaleDevice::read_response(int length) -> std::vector<uint8_t> {
-    std::vector<uint8_t> buffer(length);
-    int transferred = 0;
-    int const result = libusb_bulk_transfer(m_handle.get(), endpoint_in, buffer.data(), length,
-                                            &transferred, usb_timeout_ms);
-    if (result != LIBUSB_SUCCESS) {
-        throw std::runtime_error(
-            std::format("USB response transfer failed: {}", libusb_error_name(result)));
-    }
-    buffer.resize(static_cast<size_t>(transferred));
-    return buffer;
+    m_impl->disconnect();
 }
 
 auto UsbScaleDevice::read_users() -> std::vector<UserProfile> {
-    if (m_handle == nullptr) {
-        throw std::runtime_error("Scale is not connected.");
-    }
+    return m_impl->read_users();
+}
 
-    // Get size
-    send_command({cmd_user_data, subcmd_get_size, 0x00, 0x00});
-    auto resp = read_response(4);
-    if (resp.size() < 3) {
-        throw std::runtime_error("Unexpected user list response from scale.");
-    }
+auto UsbScaleDevice::read_measurements(const std::string& device_user_id)
+    -> std::vector<RawMeasurement> {
+    return m_impl->read_measurements(device_user_id);
+}
 
-    auto total_bytes = static_cast<uint16_t>((resp[1] << bits_per_byte) | resp[2]);
-    if (total_bytes == 0) {
-        return {};
-    }
-
-    // Get data
-    send_command({cmd_user_data, subcmd_get_data, resp[1], resp[2]});
-    auto data = read_response(total_bytes);
-    return parse_users(data);
+void UsbScaleDevice::set_device_arrived_callback(std::function<void()> callback) {
+    m_impl->set_arrival_callback(std::move(callback));
 }
 
 auto UsbScaleDevice::parse_users(std::span<const uint8_t> data) -> std::vector<UserProfile> {
@@ -267,44 +466,6 @@ auto UsbScaleDevice::parse_users(std::span<const uint8_t> data) -> std::vector<U
         users.push_back(user);
     }
     return users;
-}
-
-auto UsbScaleDevice::read_measurements(const std::string& device_user_id)
-    -> std::vector<RawMeasurement> {
-    if (m_handle == nullptr) {
-        throw std::runtime_error("Scale is not connected.");
-    }
-
-    int slot_id = 0;
-    if (device_user_id.starts_with("slot_")) {
-        try {
-            slot_id = std::stoi(device_user_id.substr(slot_prefix_len));
-        } catch (...) {
-            slot_id = 0;
-        }
-    }
-
-    if (slot_id <= 0) {
-        return {};
-    }
-
-    // Get size
-    send_command({cmd_measurement_data, subcmd_get_size, 0x00, static_cast<uint8_t>(slot_id)});
-    auto resp = read_response(4);
-    if (resp.size() < 3) {
-        throw std::runtime_error("Unexpected measurement list response from scale.");
-    }
-
-    auto total_bytes = static_cast<uint16_t>((resp[1] << bits_per_byte) | resp[2]);
-    if (total_bytes == 0) {
-        return {};
-    }
-
-    // Get data
-    send_command(
-        {cmd_measurement_data, subcmd_get_data, resp[2], resp[1], static_cast<uint8_t>(slot_id)});
-    auto data = read_response(total_bytes);
-    return parse_measurements(data);
 }
 
 auto UsbScaleDevice::parse_measurements(std::span<const uint8_t> data)

@@ -22,7 +22,6 @@ find_package(spdlog REQUIRED)
 
 # PkgConfig for system dependencies
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(SIGCPP REQUIRED sigc++-3.0)
 
 find_package(libusb QUIET)
 if(NOT TARGET libusb::libusb)
@@ -30,19 +29,15 @@ if(NOT TARGET libusb::libusb)
     add_library(libusb::libusb ALIAS PkgConfig::LIBUSB)
 endif()
 
+# libusb stays private: it is confined to device.cpp and no public header includes it.
 target_link_libraries(libscale
     PUBLIC
-        libusb::libusb
         SQLite::SQLite3
         sqlite_orm::sqlite_orm
         nlohmann_json::nlohmann_json
-        ${SIGCPP_LIBRARIES}
     PRIVATE
+        libusb::libusb
         spdlog::spdlog
-)
-
-target_include_directories(libscale SYSTEM PUBLIC
-    ${SIGCPP_INCLUDE_DIRS}
 )
 
 # Install libscale static library

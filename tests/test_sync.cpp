@@ -1,15 +1,16 @@
 #include <gtest/gtest.h>
-#include <sigc++/signal.h>
 
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
 #include <filesystem>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "libscale/calculator.hpp"
@@ -319,7 +320,7 @@ class MockScaleDevice : public IScaleDevice {
     bool is_connected_val = true;
     std::vector<UserProfile> users_to_return;
     std::vector<RawMeasurement> measurements_to_return;
-    sigc::signal<void()> device_arrived_signal;
+    std::function<void()> arrival_callback;
 
     auto connect() -> bool override {
         return connect_result;
@@ -335,8 +336,8 @@ class MockScaleDevice : public IScaleDevice {
         -> std::vector<RawMeasurement> override {
         return measurements_to_return;
     }
-    auto signal_device_arrived() -> sigc::signal<void()> override {
-        return device_arrived_signal;
+    void set_device_arrived_callback(std::function<void()> callback) override {
+        arrival_callback = std::move(callback);
     }
     [[nodiscard]] auto get_device_key() const -> std::string_view override {
         return "usb:222d:0001";

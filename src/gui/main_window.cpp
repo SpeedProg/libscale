@@ -107,10 +107,11 @@ auto find_resource(const std::filesystem::path& rel_path) -> std::string {
 MainWindow::MainWindow(
     BaseObjectType* cobject,
     const Glib::RefPtr<Gtk::Builder>& builder,  // NOLINT(readability-function-cognitive-complexity)
-    HealthManager& manager, ISettingsManager& settings_manager)
+    HealthManager& manager, ISettingsManager& settings_manager, libscale::IScaleDevice& device)
     : Gtk::ApplicationWindow(cobject),
       m_manager(manager),
       m_settings(settings_manager),
+      m_device(device),
       m_builder(builder),
       m_btn_edit_waist(builder->get_widget<Gtk::Button>("btn_edit_waist")),
       m_card_bmi(builder->get_widget<Gtk::Button>("card_bmi")),
@@ -221,6 +222,8 @@ MainWindow::MainWindow(
 }
 
 MainWindow::~MainWindow() {
+    // Detach before the window disappears so a late hotplug event cannot reach a dangling object.
+    m_device.set_device_arrived_callback(nullptr);
     m_manager.stop_sync();
     int win_width = 0;
     int win_height = 0;
@@ -230,7 +233,8 @@ MainWindow::~MainWindow() {
     m_settings.save();
 }
 
-auto MainWindow::create(HealthManager& manager, ISettingsManager& settings_manager) -> MainWindow* {
+auto MainWindow::create(HealthManager& manager, ISettingsManager& settings_manager,
+                        libscale::IScaleDevice& device) -> MainWindow* {
     auto ui_path = find_resource("main_window.ui");
     if (ui_path.empty()) {
         throw std::runtime_error("Could not find main_window.ui in any of the search paths.");
@@ -238,7 +242,7 @@ auto MainWindow::create(HealthManager& manager, ISettingsManager& settings_manag
 
     auto builder = Gtk::Builder::create_from_file(ui_path);
     return Gtk::Builder::get_widget_derived<MainWindow>(builder, "main_window", manager,
-                                                        settings_manager);
+                                                        settings_manager, device);
 }
 
 void MainWindow::on_view_model_changed() {

@@ -3,6 +3,10 @@ set(CMAKE_CXX_CLANG_TIDY "")
 find_package(GTest REQUIRED)
 find_package(spdlog REQUIRED)
 
+# The dashboard view model uses sigc++ signals; libscale itself no longer depends on sigc++.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SIGCPP REQUIRED sigc++-3.0)
+
 # scale_tests covers the libscale core plus the GUI logic that only depends on
 # core libraries (view model, settings), so it stays headless and hardware-free.
 add_executable(scale_tests
@@ -21,9 +25,13 @@ target_link_libraries(scale_tests PRIVATE
     libscale
     GTest::gtest_main
     spdlog::spdlog
+    ${SIGCPP_LIBRARIES}
 )
 
-target_include_directories(scale_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(scale_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${SIGCPP_INCLUDE_DIRS}
+)
 
 add_test(NAME scale_tests COMMAND scale_tests)
 
