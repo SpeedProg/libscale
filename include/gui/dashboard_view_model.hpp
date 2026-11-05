@@ -58,6 +58,22 @@ class DashboardViewModel {
     }
 
     /**
+     * @brief Retrieves the normalized start boundary of the active range filter.
+     * @return Start percentage (0.0 to 1.0).
+     */
+    [[nodiscard]] auto get_start_percentage() const -> double {
+        return m_start_pct;
+    }
+
+    /**
+     * @brief Retrieves the normalized end boundary of the active range filter.
+     * @return End percentage (0.0 to 1.0).
+     */
+    [[nodiscard]] auto get_end_percentage() const -> double {
+        return m_end_pct;
+    }
+
+    /**
      * @brief Signal emitted whenever the filtered measurement subset undergoes any updates.
      * @return Reference to Glib signal slot.
      */

@@ -33,6 +33,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <exception>
@@ -70,6 +71,12 @@ static constexpr int range_preset_90d = 90;
 static constexpr int range_preset_1y = 365;
 
 namespace {
+auto is_blank(const std::string& text) -> bool {
+    return std::ranges::all_of(text, [](char character_item) -> bool {
+        return std::isspace(static_cast<unsigned char>(character_item)) != 0;
+    });
+}
+
 auto find_resource(const std::filesystem::path& rel_path) -> std::string {
     const std::vector<std::filesystem::path> search_roots = {
         ".",
@@ -235,6 +242,10 @@ auto MainWindow::create(HealthManager& manager, ISettingsManager& settings_manag
 }
 
 void MainWindow::on_view_model_changed() {
+    refresh_dashboard(true);
+}
+
+void MainWindow::refresh_dashboard(bool rebuild_history) {
     const auto& filtered = m_view_model.get_filtered_data();
 
     auto update_label = [](Gtk::Label* label, double val, const std::string& unit) -> void {
@@ -303,12 +314,20 @@ void MainWindow::on_view_model_changed() {
     update_card_selection(m_card_water, MetricType::Water, "water");
     update_card_selection(m_card_muscle, MetricType::Muscle, "muscle");
 
-    m_history_model->remove_all();
-    auto history = filtered;
-    std::ranges::reverse(history);
-    for (const auto& measurement : history) {
-        m_history_model->append(MeasurementObject::create(measurement));
+    if (rebuild_history) {
+        m_history_model->remove_all();
+        auto history = filtered;
+        std::ranges::reverse(history);
+        for (const auto& measurement : history) {
+            m_history_model->append(MeasurementObject::create(measurement));
+        }
     }
+
+    // Keep the range sliders mirroring the view model without re-entering it.
+    m_updating_from_model = true;
+    m_range_start_slider->set_value(m_view_model.get_start_percentage());
+    m_range_end_slider->set_value(m_view_model.get_end_percentage());
+    m_updating_from_model = false;
 
     update_range_button_selection(m_active_preset);
 }
@@ -372,6 +391,8 @@ void MainWindow::on_user_selected(Gtk::ListBoxRow* row) {
     int const index = row->get_index();
     if (index >= 0 && std::cmp_less(index, m_users.size())) {
         m_current_user = m_users[static_cast<size_t>(index)];
+        // Persisted when the window saves its settings on destruction.
+        m_settings.set_last_user_id(m_current_user->id);
         load_user_data(m_current_user->id);
         update_profile_view();
     }
@@ -396,6 +417,15 @@ void MainWindow::refresh_user_list() {
             if (user_it != m_users.end()) {
                 index_to_select = static_cast<int>(std::distance(m_users.cbegin(), user_it));
             }
+        } else {
+            int const last_user_id = m_settings.get_last_user_id();
+            auto const last_user_it =
+                std::ranges::find_if(m_users, [last_user_id](const UserProfile& user_profile) {
+                    return user_profile.id == last_user_id;
+                });
+            if (last_user_it != m_users.end()) {
+                index_to_select = static_cast<int>(std::distance(m_users.begin(), last_user_it));
+            }
         }
         auto* row = m_user_list->get_row_at_index(index_to_select);
         if (row != nullptr) {
@@ -408,6 +438,8 @@ void MainWindow::refresh_user_list() {
 }
 
 void MainWindow::load_user_data(int user_id) {
+    // set_data() resets the range filter, so the preset highlight must reset with it.
+    m_active_preset = 0;
     try_operation("Loading measurements", [this, user_id]() -> void {
         m_view_model.set_data(m_manager.get_measurements(user_id));
     });
@@ -426,7 +458,7 @@ void MainWindow::on_metric_clicked(MetricType type) {
     } else {
         m_selected_metrics = {type};
     }
-    on_view_model_changed();
+    refresh_dashboard(false);
 }
 
 void MainWindow::setup_history_list() {
@@ -812,10 +844,7 @@ void MainWindow::on_device_name_changed() {
         return;
     }
     std::string const name = m_device_name_entry->get_text();
-    bool const is_empty_or_whitespace = std::ranges::all_of(name, [](char character_item) -> bool {
-        return character_item == ' ' || character_item == '\t' || character_item == '\n' ||
-               character_item == '\v' || character_item == '\f' || character_item == '\r';
-    });
+    bool const is_empty_or_whitespace = is_blank(name);
     m_device_save_button->set_sensitive(!is_empty_or_whitespace);
 }
 
@@ -825,10 +854,7 @@ void MainWindow::on_device_save_clicked() {
     }
 
     std::string const name = m_device_name_entry->get_text();
-    bool const is_empty_or_whitespace = std::ranges::all_of(name, [](char character_item) -> bool {
-        return character_item == ' ' || character_item == '\t' || character_item == '\n' ||
-               character_item == '\v' || character_item == '\f' || character_item == '\r';
-    });
+    bool const is_empty_or_whitespace = is_blank(name);
     if (is_empty_or_whitespace) {
         show_error_dialog("Invalid Name",
                           "Device name cannot be empty or consist only of whitespace.");
@@ -937,7 +963,7 @@ void MainWindow::init_event_handlers() {
                 m_selected_metrics = {m_selected_metrics.front()};
             }
         }
-        on_view_model_changed();
+        refresh_dashboard(false);
     });
 
     m_range_30d->signal_clicked().connect([this]() -> void {

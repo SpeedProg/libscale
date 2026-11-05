@@ -149,6 +149,13 @@ class MainWindow : public Gtk::ApplicationWindow {
 
     // ViewModel integration
     void on_view_model_changed();
+
+    /**
+     * @brief Refreshes labels, charts, cards and optionally the history list from the view model.
+     * @param rebuild_history True to rebuild the history list, false when only metric selection
+     * or chart presentation changed.
+     */
+    void refresh_dashboard(bool rebuild_history);
     void update_range_button_selection(int days);
 
     /**
