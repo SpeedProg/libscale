@@ -37,14 +37,19 @@ jobs:
           cmake --preset conan-release
           cmake --build --preset conan-release
 
-      # Step 5: Package the compiled binary and UI assets
+      # Step 5: Verify the build with the test suite
+      - name: Run Tests
+        working-directory: build/Release
+        run: ctest --output-on-failure
+
+      # Step 6: Package the compiled binary and UI assets
       - name: Prepare Artifacts
         run: |
           mkdir -p dist/bin dist/share/de.speedprog.comfort-select-dashboard
           cp build/Release/src/gui/comfort_select_dashboard dist/bin/
           cp ui/main_window.ui src/gui/style.css dist/share/de.speedprog.comfort-select-dashboard/
 
-      # Step 6: Upload the packaged files so you can download them from the UI
+      # Step 7: Upload the packaged files so you can download them from the UI
       - name: Upload Linux Binary
         uses: https://code.forgejo.org/forgejo/upload-artifact@v4
         with:

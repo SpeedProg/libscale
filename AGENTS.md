@@ -11,7 +11,7 @@ conan profile detect --force                           # first time only
 conan install . --build=missing -s build_type=Release  # must run before CMake (see note)
 cmake --preset conan-release
 cmake --build --preset conan-release                   # binary: build/Release/src/gui/comfort_select_dashboard
-cd build/Release && ctest --output-on-failure          # calculator_test + cli_smoke_test
+cd build/Release && ctest --output-on-failure          # scale_tests + cli_smoke_test
 ```
 
 - `CMakeUserPresets.json` hardcodes `build/Release/generators/CMakePresets.json`, so keep
@@ -40,8 +40,8 @@ cd build/Release && ctest --output-on-failure          # calculator_test + cli_s
 - Source lists are explicit: add new `.cpp` files to `src/libscale/CMakeLists.txt`,
   `src/gui/CMakeLists.txt`, or `tests/CMakeLists.txt` (the root `file(GLOB ...)` only feeds
   `format`/`lint`).
-- CI (`.github/workflows/build.yml`, mirrored in `.forgejo/workflows/build.yml`) builds and packages
-  only — it never runs ctest, lint, or docs. Verify locally.
+- CI (`.github/workflows/build.yml`, mirrored in `.forgejo/workflows/build.yml`) builds, packages and
+  runs ctest on Linux — it never runs lint or docs. Verify those locally.
 - `DEVELOPER.md`'s fuzzing section is stale: no `BUILD_FUZZERS` option or `libscale_fuzzer` target
   exists.
 

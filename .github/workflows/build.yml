@@ -30,6 +30,9 @@ jobs:
         mkdir -p dist/bin dist/share/de.speedprog.comfort-select-dashboard
         cp build/Release/src/gui/comfort_select_dashboard dist/bin/
         cp ui/main_window.ui src/gui/style.css dist/share/de.speedprog.comfort-select-dashboard/
+    - name: Run Tests
+      working-directory: build/Release
+      run: ctest --output-on-failure
     - name: Upload Linux Binary
       uses: actions/upload-artifact@v7
       with:
