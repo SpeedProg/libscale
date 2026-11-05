@@ -65,6 +65,7 @@ cd build/Release && ctest --output-on-failure          # calculator_test + cli_s
 - UI/CSS are runtime files, not compiled resources: `find_resource()` searches cwd, `../ui`, etc.;
   CMake copies `ui/main_window.ui` and `src/gui/style.css` into the build tree at configure time.
 - App state: `~/.local/share/libscale/` — `data.db` (kept `chmod 600`), `settings.json`,
-  `app.log`. Single instance enforced by GApplication ID `com.comfortselect.dashboard`.
+  `app.log`. Single instance enforced by GApplication ID `de.speedprog.comfort-select-dashboard`,
+  which matches the Flatpak, desktop entry and AppStream identifiers.
 - Flatpak manifest `de.speedprog.comfort-select-dashboard.yml` pins all dependencies itself and is
   built in CI.

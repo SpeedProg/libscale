@@ -1,5 +1,6 @@
 #include <glibmm/miscutils.h>
 #include <gtkmm/application.h>
+#include <sigc++/functors/mem_fun.h>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
@@ -24,13 +25,26 @@ static constexpr int log_max_files = 3;
 static constexpr int dir_perms = 0700;
 
 auto main(int argc, char* argv[]) -> int {
-    // Single-Instance enforcement via App ID
-    auto app = Gtk::Application::create("com.comfortselect.dashboard");
+    // Single-instance behavior is keyed on the application ID, which must match the Flatpak,
+    // desktop entry and AppStream identifiers.
+    auto app = Gtk::Application::create("de.speedprog.comfort-select-dashboard");
 
     app->signal_activate().connect([&app]() -> void {
+        // A second launch activates the running instance: bring the existing window forward
+        // instead of creating a second one.
+        auto const windows = app->get_windows();
+        if (!windows.empty()) {
+            windows.front()->present();
+            return;
+        }
+
         try {
             std::string const data_dir = Glib::get_user_data_dir() + "/libscale";
             std::filesystem::create_directories(data_dir);
+
+            // Data Privacy: Keep the application directory owner-only as well.
+            std::filesystem::permissions(data_dir, static_cast<std::filesystem::perms>(dir_perms),
+                                         std::filesystem::perm_options::replace);
 
             // Initialize Logging
             auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
@@ -69,9 +83,10 @@ auto main(int argc, char* argv[]) -> int {
 
             // Connect physical device hotplug arrival events to the UI thread-safely.
             // Since the USB hotplug event thread runs in the background, we must bridge
-            // the event to the main GTK thread via MainWindow's dispatcher.
+            // the event to the main GTK thread via MainWindow's dispatcher. The sigc::mem_fun
+            // connection is tracked, so it disconnects if the window is ever destroyed.
             device->signal_device_arrived().connect(
-                [window]() -> void { window->notify_device_arrived(); });
+                sigc::mem_fun(*window, &comfort_select::MainWindow::notify_device_arrived));
         } catch (const std::exception& error) {
             std::cerr << "Fatal error during startup: " << error.what() << '\n';
             std::exit(1);  // NOLINT(concurrency-mt-unsafe): Terminating the process on fatal
