@@ -36,12 +36,10 @@ class ScaleProviderFactory {
      * @return Unique pointer to the instantiated IScaleDevice.
      */
     [[nodiscard]] static auto create(ProviderType type) -> std::unique_ptr<IScaleDevice> {
-        switch (type) {
-            case ProviderType::UsbComfortSelect:
-                return std::make_unique<UsbScaleDevice>();
-            default:
-                throw std::invalid_argument("Unsupported Scale Provider Type.");
+        if (type == ProviderType::UsbComfortSelect) {
+            return std::make_unique<UsbScaleDevice>();
         }
+        throw std::invalid_argument("Unsupported Scale Provider Type.");
     }
 };
 

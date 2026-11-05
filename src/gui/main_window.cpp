@@ -591,7 +591,11 @@ void MainWindow::on_export_csv_clicked() {
     }
 
     export_measurements(
-        *this, m_csv_export_dialog, "Export CSV File", "CSV files (*.csv)", "export.csv", "csv",
+        *this, m_csv_export_dialog,
+        {.title = "Export CSV File",
+         .filter_label = "CSV files (*.csv)",
+         .default_name = "export.csv",
+         .extension = "csv"},
         [this]() -> std::string {
             return libscale::DataExporter::to_csv(m_view_model.get_filtered_data());
         },
@@ -612,8 +616,11 @@ void MainWindow::on_export_json_clicked() {
     }
 
     export_measurements(
-        *this, m_json_export_dialog, "Export JSON File", "JSON files (*.json)", "export.json",
-        "json",
+        *this, m_json_export_dialog,
+        {.title = "Export JSON File",
+         .filter_label = "JSON files (*.json)",
+         .default_name = "export.json",
+         .extension = "json"},
         [this]() -> std::string {
             return libscale::DataExporter::to_json(m_view_model.get_filtered_data());
         },

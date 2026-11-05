@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-#include "libscale/db_serializers.hpp"
+#include "db_serializers.hpp"
 #include "libscale/types.hpp"
 
 namespace libscale {

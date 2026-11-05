@@ -1,0 +1,34 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# libscale links these dependencies privately, but consumers of a static library
+# still need them at link time, and the exported target references their names.
+find_dependency(Threads)
+find_dependency(SQLite3)
+find_dependency(SqliteOrm)
+find_dependency(nlohmann_json)
+find_dependency(spdlog)
+
+# libusb ships a CMake package in some environments (for example Conan) and only
+# pkg-config metadata in others (distributions, Flatpak), so try both.
+find_package(libusb QUIET)
+if(NOT TARGET libusb::libusb)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(LIBUSB QUIET IMPORTED_TARGET libusb-1.0)
+        if(TARGET PkgConfig::LIBUSB)
+            add_library(libusb::libusb ALIAS PkgConfig::LIBUSB)
+        endif()
+    endif()
+endif()
+if(NOT TARGET libusb::libusb)
+    set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE
+        "libscale requires libusb, but neither a CMake package nor pkg-config metadata was found.")
+    set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
+    return()
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/libscaleTargets.cmake")
+
+check_required_components(libscale)

@@ -37,7 +37,9 @@ void prompt_waist_circumference(
  * @param message Question text displayed as secondary text.
  * @param on_response Callback invoked with true when Yes was chosen, false otherwise.
  */
-void confirm_action(Gtk::Window& parent, const std::string& title, const std::string& message,
+void confirm_action(Gtk::Window& parent,
+                    const std::string& title,  // NOLINT(bugprone-easily-swappable-parameters)
+                    const std::string& message,
                     const std::function<void(bool confirmed)>& on_response);
 
 /**
@@ -58,21 +60,31 @@ auto create_scale_link_dialog(
     -> std::unique_ptr<Gtk::Dialog>;
 
 /**
+ * @brief Static configuration of a measurement export save dialog.
+ */
+struct ExportDialogOptions {
+    /// Dialog title.
+    std::string title;
+    /// Human-readable file filter label.
+    std::string filter_label;
+    /// Pre-filled file name.
+    std::string default_name;
+    /// File extension (without dot) enforced on the selected path.
+    std::string extension;
+};
+
+/**
  * @brief Shows a save dialog that writes serialized measurement data to the chosen file.
  * The caller owns the dialog slot so it is created once and reused on subsequent invocations.
  * @param parent Window the dialog is transient for.
  * @param dialog_slot Slot the dialog is lazily created in and kept alive by.
- * @param title Dialog title.
- * @param filter_label Human-readable file filter label.
- * @param default_name Pre-filled file name.
- * @param extension File extension (without dot) enforced on the selected path.
+ * @param options Static dialog configuration.
  * @param serialize Produces the file content at save time.
  * @param on_saved Callback invoked with the written path on success.
  * @param on_error Callback invoked with a failure message when the file cannot be written.
  */
 void export_measurements(Gtk::Window& parent, std::unique_ptr<Gtk::FileChooserDialog>& dialog_slot,
-                         const std::string& title, const std::string& filter_label,
-                         const std::string& default_name, const std::string& extension,
+                         const ExportDialogOptions& options,
                          const std::function<std::string()>& serialize,
                          const std::function<void(const std::string& path)>& on_saved,
                          const std::function<void(const std::string& message)>& on_error);

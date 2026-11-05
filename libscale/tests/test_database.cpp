@@ -10,6 +10,7 @@
 
 using namespace libscale;
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 namespace {
 
 auto make_temp_db_path(const std::string& name) -> std::filesystem::path {
@@ -132,3 +133,5 @@ TEST_F(DatabaseMeasurementTest /*unused*/, ReplacePathUpdatesMetricsAndRawTeleme
     EXPECT_EQ(raw->imp5k, 510);
     EXPECT_EQ(raw->imp50k, 460);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

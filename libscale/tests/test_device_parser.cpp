@@ -13,6 +13,7 @@
 
 using namespace libscale;
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 namespace {
 
 constexpr size_t user_packet_size = 16;
@@ -138,3 +139,5 @@ TEST(DeviceParserTest /*unused*/, IgnoresTruncatedMeasurementData) {
 
     EXPECT_TRUE(UsbScaleDevice::parse_measurements(packet).empty());
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

@@ -90,23 +90,27 @@ if(PYTHON_EXE)
     if(TARGET check-docs-doxygen)
         add_custom_target(check-docs
             COMMAND ${PYTHON_EXE} -u ${CMAKE_SOURCE_DIR}/tools/check_documentation.py
+                    ${CMAKE_SOURCE_DIR}/include/gui
             DEPENDS check-docs-doxygen
             COMMENT "Verifying documentation coverage (Python Regex + Doxygen)..."
         )
     else()
         add_custom_target(check-docs
             COMMAND ${PYTHON_EXE} -u ${CMAKE_SOURCE_DIR}/tools/check_documentation.py
+                    ${CMAKE_SOURCE_DIR}/include/gui
             COMMENT "Verifying Doxygen documentation coverage..."
         )
     endif()
 endif()
 
+# libscale is a separate project, consumed as a Conan package created with
+#   conan create libscale --build=missing -s build_type=Release
+# and located here through the CMake package it installs.
+find_package(libscale REQUIRED)
+
 # Find GTKmm 4.0 via PkgConfig
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTKMM REQUIRED gtkmm-4.0 fontconfig)
-
-# Build libscale (Core)
-add_subdirectory(src/libscale)
 
 # Build GUI app
 add_subdirectory(src/gui)

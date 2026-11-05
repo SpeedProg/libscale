@@ -4,7 +4,7 @@ PROJECT_NAME           = "Comfort Select Dashboard"
 OUTPUT_DIRECTORY       = "build/docs"
 
 # Input source locations (scans the entire public/internal header repository recursively)
-INPUT                  = include/libscale include/gui
+INPUT                  = include/gui
 RECURSIVE              = YES
 
 # Enforce explicit documentation (do not auto-document)

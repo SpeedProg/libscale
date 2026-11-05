@@ -117,6 +117,19 @@ modules:
         url: https://download.gnome.org/sources/gtkmm/4.20/gtkmm-4.20.0.tar.xz
         sha256: daad9bf9b70f90975f91781fc7a656c923a91374261f576c883cd3aebd59c833
 
+  # libscale lives in its own subproject; once it is split into a separate
+  # repository this becomes a git source pinned to a release tag, e.g.
+  #   - type: git
+  #     url: https://github.com/speedprog/libscale.git
+  #     tag: libscale-v1.0.0
+  - name: libscale
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DLIBSCALE_BUILD_TESTS=OFF
+    sources:
+      - type: dir
+        path: libscale
+
   - name: comfort-select-dashboard
     buildsystem: cmake-ninja
     sources:

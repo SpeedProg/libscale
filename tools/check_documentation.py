@@ -3,6 +3,9 @@ import os
 import re
 import sys
 
+REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+DEFAULT_INCLUDE_DIR = os.path.join(REPO_ROOT, "include", "gui")
+
 # Doxygen comment regexes
 RE_DOXYGEN_LINE = re.compile(r'^\s*///')
 RE_DOXYGEN_BLOCK_START = re.compile(r'^\s*/\*[*!]')
@@ -129,7 +132,7 @@ def check_file(filepath: str) -> list:
     return errors
 
 def main():
-    include_dir = "/workspace/include/libscale"
+    include_dir = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_INCLUDE_DIR
     if not os.path.isdir(include_dir):
         print(f"Error: Directory {include_dir} not found.")
         sys.exit(1)
@@ -147,7 +150,7 @@ def main():
     for filepath in target_files:
         errors = check_file(filepath)
         if errors:
-            rel_path = os.path.relpath(filepath, "/workspace")
+            rel_path = os.path.relpath(filepath, REPO_ROOT)
             print(f"\n[{rel_path}]")
             for line_num, err in errors:
                 print(f"  Line {line_num}: {err}")

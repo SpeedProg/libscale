@@ -22,6 +22,10 @@ jobs:
       run: pip install conan
     - name: Conan Profile
       run: conan profile detect --force
+    - name: Create libscale Package
+      # After libscale moves to its own repository, check it out first (submodule or clone), e.g.:
+      #   git clone --depth 1 --branch libscale-v1.0.0 https://github.com/SpeedProg/libscale.git libscale
+      run: conan create libscale --build=missing -s build_type=Release
     - name: Build
       run: |
         conan install . --build=missing -s build_type=Release
@@ -79,6 +83,12 @@ jobs:
         [conf]
         tools.cmake.cmaketoolchain:generator=Ninja
         EOF
+
+    - name: Create libscale Package
+      # After libscale moves to its own repository, check it out first (submodule or clone).
+      shell: msys2 {0}
+      run: |
+        conan create libscale --build=missing -s build_type=Release
 
     - name: Install Conan Dependencies
       shell: msys2 {0}

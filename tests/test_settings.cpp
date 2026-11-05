@@ -8,6 +8,7 @@
 using comfort_select::JsonSettingsManager;
 using comfort_select::UnitSystem;
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 namespace {
 
 auto make_temp_settings_path(const std::string& name) -> std::filesystem::path {
@@ -52,3 +53,5 @@ TEST(SettingsTest /*unused*/, ValuesRoundTripThroughTheFile) {
 
     std::filesystem::remove(path);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

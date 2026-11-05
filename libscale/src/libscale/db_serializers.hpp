@@ -5,7 +5,7 @@
 #include <chrono>
 #include <format>
 
-#include "types.hpp"
+#include "libscale/types.hpp"
 
 /**
  * @brief Custom SQLite-ORM serialization converters namespace.

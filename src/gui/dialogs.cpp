@@ -97,7 +97,9 @@ void prompt_waist_circumference(
     dialog->show();
 }
 
-void confirm_action(Gtk::Window& parent, const std::string& title, const std::string& message,
+void confirm_action(Gtk::Window& parent,
+                    const std::string& title,  // NOLINT(bugprone-easily-swappable-parameters)
+                    const std::string& message,
                     const std::function<void(bool confirmed)>& on_response) {
     auto* dialog = Gtk::make_managed<Gtk::MessageDialog>(
         parent, title, false, Gtk::MessageType::QUESTION, Gtk::ButtonsType::YES_NO, true);
@@ -166,50 +168,64 @@ auto create_scale_link_dialog(
     return dialog;
 }
 
+namespace {
+
+void write_exported_content(const Gtk::FileChooserDialog& dialog, const std::string& extension,
+                            const std::function<std::string()>& serialize,
+                            const std::function<void(const std::string& path)>& on_saved,
+                            const std::function<void(const std::string& message)>& on_error) {
+    auto const file = dialog.get_file();
+    if (!file) {
+        return;
+    }
+
+    std::string path = file->get_path();
+    if (!path.ends_with("." + extension)) {
+        path += "." + extension;
+    }
+
+    try {
+        std::ofstream out(path);
+        if (!out) {
+            throw std::runtime_error("Could not open file for writing.");
+        }
+        out << serialize();
+        if (on_saved) {
+            on_saved(path);
+        }
+    } catch (const std::exception& e) {
+        if (on_error) {
+            on_error(e.what());
+        }
+    }
+}
+
+}  // namespace
+
 void export_measurements(Gtk::Window& parent, std::unique_ptr<Gtk::FileChooserDialog>& dialog_slot,
-                         const std::string& title, const std::string& filter_label,
-                         const std::string& default_name, const std::string& extension,
+                         const ExportDialogOptions& options,
                          const std::function<std::string()>& serialize,
                          const std::function<void(const std::string& path)>& on_saved,
                          const std::function<void(const std::string& message)>& on_error) {
     if (!dialog_slot) {
-        dialog_slot =
-            std::make_unique<Gtk::FileChooserDialog>(parent, title, Gtk::FileChooser::Action::SAVE);
+        dialog_slot = std::make_unique<Gtk::FileChooserDialog>(parent, options.title,
+                                                               Gtk::FileChooser::Action::SAVE);
         dialog_slot->set_modal(true);
         dialog_slot->add_button("_Cancel", Gtk::ResponseType::CANCEL);
         dialog_slot->add_button("_Save", Gtk::ResponseType::ACCEPT);
 
-        auto filter = Gtk::FileFilter::create();
-        filter->set_name(filter_label);
-        filter->add_pattern("*." + extension);
+        auto const filter = Gtk::FileFilter::create();
+        filter->set_name(options.filter_label);
+        filter->add_pattern("*." + options.extension);
         dialog_slot->add_filter(filter);
-        dialog_slot->set_current_name(default_name);
+        dialog_slot->set_current_name(options.default_name);
 
         auto* dialog_raw = dialog_slot.get();
+        auto const extension = options.extension;
         dialog_slot->signal_response().connect(
             [dialog_raw, extension, serialize, on_saved, on_error](int response_id) -> void {
                 if (response_id == Gtk::ResponseType::ACCEPT) {
-                    auto file = dialog_raw->get_file();
-                    if (file) {
-                        std::string path = file->get_path();
-                        if (!path.ends_with("." + extension)) {
-                            path += "." + extension;
-                        }
-                        try {
-                            std::ofstream out(path);
-                            if (!out) {
-                                throw std::runtime_error("Could not open file for writing.");
-                            }
-                            out << serialize();
-                            if (on_saved) {
-                                on_saved(path);
-                            }
-                        } catch (const std::exception& e) {
-                            if (on_error) {
-                                on_error(e.what());
-                            }
-                        }
-                    }
+                    write_exported_content(*dialog_raw, extension, serialize, on_saved, on_error);
                 }
                 dialog_raw->hide();
             });

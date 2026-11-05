@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstddef>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
@@ -14,6 +13,7 @@
 using libscale::DataExporter;
 using libscale::Measurement;
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 namespace {
 
 auto make_measurement() -> Measurement {
@@ -66,3 +66,5 @@ TEST(ExporterTest /*unused*/, JsonContainsBothFormulaVersions) {
     EXPECT_EQ(parsed[0]["energy_v2_kcal"].get<int>(), 2250);
     EXPECT_EQ(parsed[0]["formula_version"].get<int>(), 1);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

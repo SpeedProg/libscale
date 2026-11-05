@@ -1,0 +1,67 @@
+name: libscale CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libusb-1.0-0-dev pkg-config
+    - name: Install Conan
+      run: pip install conan
+    - name: Conan Profile
+      run: conan profile detect --force
+    - name: Create Package and Run Tests
+      run: conan create . --build=missing -s build_type=Release
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install Conan on Host
+      run: pip install conan
+
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        path-type: inherit
+        install: >-
+          mingw-w64-ucrt-x86_64-gcc
+          mingw-w64-ucrt-x86_64-cmake
+          mingw-w64-ucrt-x86_64-ninja
+          mingw-w64-ucrt-x86_64-pkg-config
+          mingw-w64-ucrt-x86_64-libusb
+
+    - name: Conan Profile
+      shell: msys2 {0}
+      run: |
+        CONAN_HOME=$(conan config home)
+        mkdir -p "$CONAN_HOME/profiles"
+        cat << 'EOF' > "$CONAN_HOME/profiles/default"
+        [settings]
+        os=Windows
+        arch=x86_64
+        compiler=gcc
+        compiler.version=15.2
+        compiler.libcxx=libstdc++11
+        compiler.cppstd=gnu20
+        build_type=Release
+
+        [conf]
+        tools.cmake.cmaketoolchain:generator=Ninja
+        EOF
+
+    - name: Create Package and Run Tests
+      shell: msys2 {0}
+      run: conan create . --build=missing -s build_type=Release

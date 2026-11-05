@@ -24,14 +24,18 @@ If this is your first time using Conan on this system, you must initialize the d
 uv run conan profile detect --force
 ```
 
-Then, you can run the install command directly using `uv run`:
+The dashboard consumes `libscale` as a local Conan package, so create it once before installing
+the app (and re-create it whenever the library changes):
 ```bash
-uv run conan install . --build=missing
+uv run conan create libscale --build=missing -s build_type=Release
+uv run conan install . --build=missing -s build_type=Release
 ```
-Alternatively, you can activate the virtual environment and run `conan`:
+Alternatively, you can activate the virtual environment and run the same commands without
+`uv run`:
 ```bash
 source .venv/bin/activate
-conan install . --build=missing
+conan create libscale --build=missing -s build_type=Release
+conan install . --build=missing -s build_type=Release
 ```
 
 ### 2. Compile
@@ -41,14 +45,34 @@ cmake --build build/Release
 ```
 The compiled binary goes to `build/Release/src/gui/comfort_select_dashboard`.
 
+### 3. Working on libscale
+The core library lives in [`libscale/`](libscale/README.md) and builds, tests and installs on
+its own (no GTK required):
+
+```bash
+cd libscale
+conan install . -s build_type=Release --build=missing
+cmake --preset conan-release
+cmake --build --preset conan-release
+cd build/Release && ctest --output-on-failure
+```
+
+`conan create libscale` (see step 1) builds the library, runs its unit tests and validates the
+package with the `test_package/` consumer. See `libscale/README.md` for the full standalone
+workflow, publishing and repository-split instructions.
+
 ## Tests & Quality checks
 
 ### Unit Tests
-Written with GoogleTest to check the calculator logic.
+The dashboard build runs `gui_tests` (view model, settings) and the `cli_smoke_test`
+integration test against the packaged library:
 ```bash
 cd build/Release
 ctest --output-on-failure
 ```
+
+The library's own suite (calculator, database, device parser, exporter, sync) lives in
+`libscale/tests/` and runs through `conan create libscale` or the standalone build above.
 
 ### Formatting & Linting
 To run the auto-formatter:

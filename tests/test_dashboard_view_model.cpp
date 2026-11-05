@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
-#include <cstddef>
 #include <vector>
 
 #include "gui/dashboard_view_model.hpp"
@@ -11,6 +10,7 @@
 using comfort_select::DashboardViewModel;
 using libscale::Measurement;
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 namespace {
 
 constexpr int default_measurement_count = 10;
@@ -106,3 +106,5 @@ TEST(DashboardViewModelTest /*unused*/, DataChangedSignalIsEmitted) {
 
     EXPECT_EQ(emissions, 3);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

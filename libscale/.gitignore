@@ -1,0 +1,11 @@
+# Build and output directories
+build/
+docs/
+
+# Local Conan/CMake generated files
+CMakeUserPresets.json
+compile_commands.json
+.clangd/
+
+# Databases and local state (test run outputs)
+*.db

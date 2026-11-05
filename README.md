@@ -13,12 +13,23 @@ To fix this:
 4. Pick the `SOEHNLE - Comfort Select` device.
 5. Set the target driver to `WinUSB` and click **Replace Driver**.
 
+The dashboard depends on `libscale`, which lives in [`libscale/`](libscale/README.md) and is
+consumed as a local Conan package. Create it once per machine before installing the app.
+
 ### Quick Build (Linux)
 ```bash
-mkdir build && cd build
-conan install .. --build=missing
-cmake .. -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
-cmake --build .
+conan profile detect --force   # once per machine
+conan create libscale --build=missing -s build_type=Release
+conan install . --build=missing -s build_type=Release
+cmake --preset conan-release
+cmake --build --preset conan-release
+```
+
+The binary is written to `build/Release/src/gui/comfort_select_dashboard`. Run the tests from
+the build directory:
+
+```bash
+cd build/Release && ctest --output-on-failure
 ```
 
 ### Windows (MSYS2 MINGW64)
@@ -27,11 +38,12 @@ cmake --build .
 > Due to C++ ABI incompatibility with GTKmm and sigc++, **compiling with MSVC is strictly unsupported.** You must use the MSYS2 UCRT64 (or MINGW64) GCC compiler for Windows builds.
 
 ```bash
-pacman -S mingw-w64-x86_64-gtkmm4
-mkdir build && cd build
-conan install .. --build=missing
-cmake .. -G "MinGW Makefiles" -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake
-cmake --build .
+pacman -S mingw-w64-x86_64-gtkmm4 mingw-w64-x86_64-libusb mingw-w64-x86_64-pkg-config
+conan profile detect --force   # once per machine
+conan create libscale --build=missing -s build_type=Release
+conan install . --build=missing -s build_type=Release
+cmake --preset conan-release
+cmake --build --preset conan-release
 ```
 
 ## Features

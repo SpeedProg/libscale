@@ -17,14 +17,17 @@ target_include_directories(comfort_select_dashboard PRIVATE
 
 # Find spdlog and its dependencies (like fmt)
 find_package(spdlog REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
-# GUI code uses sigc++ signals directly; libscale no longer propagates sigc++.
+# GUI code uses sigc++ and JSON directly; libscale no longer propagates them.
+find_package(PkgConfig REQUIRED)
 pkg_check_modules(SIGCPP REQUIRED sigc++-3.0)
 
 target_link_libraries(comfort_select_dashboard PRIVATE 
-    libscale
+    libscale::libscale
     ${GTKMM_LIBRARIES}
     spdlog::spdlog
+    nlohmann_json::nlohmann_json
     ${SIGCPP_LIBRARIES}
 )
 

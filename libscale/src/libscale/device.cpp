@@ -78,7 +78,7 @@ auto from_be(std::span<const uint8_t> data, size_t offset) -> T {
     }
     T val = 0;
     for (size_t i = 0; i < sizeof(T); ++i) {
-        val = static_cast<T>((val << bits_per_byte) | data[offset + i]);
+        val = static_cast<T>((static_cast<unsigned int>(val) << bits_per_byte) | data[offset + i]);
     }
     return val;
 }
@@ -286,7 +286,8 @@ class UsbScaleDevice::Impl {
             throw std::runtime_error("Unexpected user list response from scale.");
         }
 
-        auto total_bytes = static_cast<uint16_t>((resp[1] << bits_per_byte) | resp[2]);
+        auto const total_bytes =
+            static_cast<uint16_t>((static_cast<uint16_t>(resp[1]) << bits_per_byte) | resp[2]);
         if (total_bytes == 0) {
             return {};
         }
@@ -322,7 +323,8 @@ class UsbScaleDevice::Impl {
             throw std::runtime_error("Unexpected measurement list response from scale.");
         }
 
-        auto total_bytes = static_cast<uint16_t>((resp[1] << bits_per_byte) | resp[2]);
+        auto const total_bytes =
+            static_cast<uint16_t>((static_cast<uint16_t>(resp[1]) << bits_per_byte) | resp[2]);
         if (total_bytes == 0) {
             return {};
         }
@@ -361,7 +363,7 @@ class UsbScaleDevice::Impl {
             throw std::runtime_error(
                 std::format("USB command transfer failed: {}", libusb_error_name(result)));
         }
-        if (transferred != static_cast<int>(cmd.size())) {
+        if (static_cast<size_t>(transferred) != cmd.size()) {
             throw std::runtime_error("USB command transfer was truncated.");
         }
     }
@@ -447,7 +449,7 @@ auto UsbScaleDevice::parse_users(std::span<const uint8_t> data) -> std::vector<U
         // range are clamped so corrupt packets cannot produce invalid enum values.
         uint8_t const sex_activity = data[i + off_user_sex_activity];
         user.gender = ((sex_activity >> gender_bit) != 0) ? Gender::Female : Gender::Male;
-        int const encoded_activity = static_cast<int>((sex_activity & activity_mask) + 1);
+        int const encoded_activity = (sex_activity & activity_mask) + 1;
         constexpr int min_activity = static_cast<int>(ActivityLevel::Scarcely);
         constexpr int max_activity = static_cast<int>(ActivityLevel::HighLevel);
         user.activity_level =
@@ -457,9 +459,9 @@ auto UsbScaleDevice::parse_users(std::span<const uint8_t> data) -> std::vector<U
         // Month and day fields are stored in the scale's internal memory as 0-indexed values
         // (0 = January, 0 = 1st day of the month) to save space or ease calendar calculations.
         // We apply a +1 offset here to construct valid standard Gregorian calendar date instances.
-        auto year = from_be<uint16_t>(data, i + off_user_bday_year);
-        auto month = static_cast<uint8_t>(data[i + off_user_bday_month] + 1);
-        auto day = static_cast<uint8_t>(data[i + off_user_bday_day] + 1);
+        auto const year = from_be<uint16_t>(data, i + off_user_bday_year);
+        auto const month = static_cast<uint8_t>(data[i + off_user_bday_month] + 1);
+        auto const day = static_cast<uint8_t>(data[i + off_user_bday_day] + 1);
 
         user.birthday = std::chrono::year(year) / month / day;
 
