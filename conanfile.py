@@ -57,7 +57,12 @@ class LibscaleConan(ConanFile):
         cmake.configure()
         cmake.build()
         if not self.conf.get("tools.build:skip_test", default=False):
-            cmake.test()
+            # Run ctest directly instead of cmake.test() so the
+            # --output-on-failure flag reliably reaches ctest (passing it via
+            # CMake.test(cli_args=...) goes to ninja/make, and an inline
+            # CTEST_OUTPUT_ON_FAILURE env entry is not honored by Conan).
+            # Platform-specific test failures must be visible in CI logs.
+            self.run("ctest --output-on-failure", env="conanrun")
 
     def package(self):
         cmake = CMake(self)
