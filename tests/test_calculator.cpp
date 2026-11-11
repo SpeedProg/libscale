@@ -2,7 +2,12 @@
 
 #include <chrono>
 #include <cstdint>
+#ifdef _WIN32
+#include <cstdio>
+#include <cstdlib>
+#endif
 #include <filesystem>
+#include <string>
 
 #include "libscale/calculator.hpp"
 #include "libscale/database_impl.hpp"
@@ -242,6 +247,44 @@ TEST(DatabaseTest /*unused*/, MemoryDatabaseInitialization /*unused*/) {
 }
 
 TEST(DatabaseTest /*unused*/, DatabaseFilePermissions /*unused*/) {
+#ifdef _WIN32
+    // Windows has an ACL-based permission model instead of POSIX mode bits.
+    // initialize() applies an owner-only DACL via icacls (inheritance removed,
+    // single full-control grant for the current user); verify through the ACL.
+    std::filesystem::path const db_path = "test_perms.db";
+    if (std::filesystem::exists(db_path)) {
+        std::filesystem::remove(db_path);
+    }
+
+    {
+        SqliteDatabaseManager db_manager;
+        ASSERT_TRUE(db_manager.initialize(db_path));
+    }
+    ASSERT_TRUE(std::filesystem::exists(db_path));
+
+    char const* const username = std::getenv("USERNAME");
+    ASSERT_NE(username, nullptr);
+
+    std::string acl;
+    FILE* pipe = popen(("icacls \"" + db_path.string() + "\"").c_str(), "r");
+    if (pipe != nullptr) {
+        char buffer[4096];
+        while (std::fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+            acl += buffer;
+        }
+        (void)pclose(pipe);
+    }
+
+    // Only the current user holds full control...
+    EXPECT_NE(acl.find(username), std::string::npos);
+    EXPECT_NE(acl.find("(F)"), std::string::npos);
+    // ...nothing inherited, no world- or group-wide grants remain.
+    EXPECT_EQ(acl.find("(I)"), std::string::npos);
+    EXPECT_EQ(acl.find("Everyone"), std::string::npos);
+    EXPECT_EQ(acl.find("BUILTIN\\Users"), std::string::npos);
+
+    std::filesystem::remove(db_path);
+#else
     std::filesystem::path const db_path = "test_perms.db";
     if (std::filesystem::exists(db_path)) {
         std::filesystem::remove(db_path);
@@ -264,4 +307,5 @@ TEST(DatabaseTest /*unused*/, DatabaseFilePermissions /*unused*/) {
     EXPECT_NE(perms & std::filesystem::perms::owner_write, std::filesystem::perms::none);
 
     std::filesystem::remove(db_path);
+#endif
 }

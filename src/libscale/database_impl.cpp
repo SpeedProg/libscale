@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "db_serializers.hpp"
+#include "file_permissions.hpp"
 #include "libscale/types.hpp"
 
 namespace libscale {
@@ -144,6 +145,13 @@ auto SqliteDatabaseManager::initialize(const std::filesystem::path& db_path) -> 
             spdlog::error("Failed to create database backup: {}", ex.what());
             return false;
         }
+        // The backup is a full copy of the private database: it must not be
+        // readable by group/others while it exists (or forever, if the
+        // process dies before the rollback removes it).
+        if (!internal::restrict_permissions_to_owner(backup_path)) {
+            spdlog::warn("Failed to restrict database backup permissions to the owner: {}",
+                         backup_path.string());
+        }
     }
 
     try {
@@ -153,10 +161,15 @@ auto SqliteDatabaseManager::initialize(const std::filesystem::path& db_path) -> 
         };
         new_storage->sync_schema();
 
-        // Ensure owner-only permissions (chmod 600)
-        if (std::filesystem::exists(db_path)) {
-            std::filesystem::permissions(
-                db_path, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write);
+        // Ensure owner-only access to the database (chmod 600 on POSIX,
+        // owner-only DACL on Windows via icacls). Best-effort hardening:
+        // log a warning and continue if it fails.
+        std::error_code exists_error;
+        if (std::filesystem::exists(db_path, exists_error) && !exists_error) {
+            if (!internal::restrict_permissions_to_owner(db_path)) {
+                spdlog::warn("Failed to restrict database file permissions to the owner: {}",
+                             db_path.string());
+            }
         }
 
         m_impl->storage = std::move(new_storage);
@@ -176,6 +189,12 @@ auto SqliteDatabaseManager::initialize(const std::filesystem::path& db_path) -> 
                 std::filesystem::copy_file(backup_path, db_path,
                                            std::filesystem::copy_options::overwrite_existing);
                 std::filesystem::remove(backup_path);
+                // The restore replaced the hardened database file, so the
+                // owner-only restriction must be applied again.
+                if (!internal::restrict_permissions_to_owner(db_path)) {
+                    spdlog::warn("Failed to restrict database file permissions after rollback: {}",
+                                 db_path.string());
+                }
             } catch (const std::exception& rollback_ex) {
                 spdlog::error("Database rollback failed: {}", rollback_ex.what());
             }
