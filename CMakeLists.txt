@@ -8,11 +8,27 @@ include(GNUInstallDirs)
 
 option(LIBSCALE_BUILD_TESTS "Build the libscale unit tests" ON)
 
-# Performance: Link Time Optimization
+# Performance: Link Time Optimization, for optimized SHARED builds only.
+# Three exclusions, each found on a real toolchain:
+#   * Debug builds: -g combined with LTO breaks the MinGW linker
+#     ("lto1.exe: two or more sections for .gnu.lto__...").
+#   * Windows (all linkages): ld's auto-export (no dllexport annotations here)
+#     rejects the section-typed symbols LTO emits ("symbol wrong type").
+#   * STATIC archives (all platforms): a consumer's ld auto-loads the LTO
+#     plugin whenever it sees .gnu.lto_ sections, so the archive only links
+#     with the exact GCC version that built it ("bytecode stream generated
+#     with LTO version 15.1 instead of the expected 16.0"). Prebuilt archives
+#     must link everywhere, so they ship without LTO bytecode. Shared
+#     libraries are self-contained binaries and keep the optimization.
 include(CheckIPOSupported)
-check_ipo_supported(RESULT ipo_supported OUTPUT error)
-if(ipo_supported)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+if(NOT ipo_supported)
+    message(STATUS "Link-time optimization not supported by this toolchain: ${ipo_error}")
+endif()
+if(ipo_supported AND (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel"))
+    if(NOT WIN32 AND BUILD_SHARED_LIBS)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    endif()
 endif()
 
 # Reproducible builds: strip paths and timestamps
