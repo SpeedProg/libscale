@@ -2,6 +2,10 @@
 
 include(CMakeFindDependencyMacro)
 
+# Consumers of the shared library get every private dependency through the
+# shared object, so the lookups below are only needed when linking the
+# static library.
+if(NOT @LIBSCALE_PACKAGE_SHARED@)
 # libscale links these dependencies privately, but consumers of a static library
 # still need them at link time, and the exported target references their names.
 find_dependency(Threads)
@@ -14,34 +18,37 @@ find_dependency(spdlog)
 # pkg-config metadata in others (distributions, Flatpak), so try both.
 find_package(libusb QUIET)
 if(NOT TARGET libusb::libusb)
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_check_modules(LIBUSB QUIET IMPORTED_TARGET libusb-1.0)
-    if(TARGET PkgConfig::LIBUSB)
-        add_library(libusb::libusb ALIAS PkgConfig::LIBUSB)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(LIBUSB QUIET IMPORTED_TARGET libusb-1.0)
+        if(TARGET PkgConfig::LIBUSB)
+            add_library(libusb::libusb ALIAS PkgConfig::LIBUSB)
+        endif()
     endif()
 endif()
-endif()
 if(NOT TARGET libusb::libusb)
-set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE
-    "libscale requires libusb, but neither a CMake package nor pkg-config metadata was found.")
-set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
-return()
+    set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE
+        "libscale requires libusb, but neither a CMake package nor pkg-config metadata was found.")
+    set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
+    return()
+endif()
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/libscaleTargets.cmake")
 
 # Propagate transitive dependencies into libscale::libscale so consumers
 # of a static library get all required link dependencies automatically.
-target_link_libraries(libscale::libscale INTERFACE
-    Threads::Threads
-    SQLite::SQLite3
-    sqlite_orm::sqlite_orm
-    nlohmann_json::nlohmann_json
-    spdlog::spdlog
-)
-if(NOT WIN32)
-    target_link_libraries(libscale::libscale INTERFACE libusb::libusb)
+if(NOT @LIBSCALE_PACKAGE_SHARED@ AND TARGET libscale::libscale)
+    target_link_libraries(libscale::libscale INTERFACE
+        Threads::Threads
+        SQLite::SQLite3
+        sqlite_orm::sqlite_orm
+        nlohmann_json::nlohmann_json
+        spdlog::spdlog
+    )
+    if(NOT WIN32)
+        target_link_libraries(libscale::libscale INTERFACE libusb::libusb)
+    endif()
 endif()
 
 check_required_components(libscale)

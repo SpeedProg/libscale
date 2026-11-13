@@ -111,6 +111,13 @@ install(EXPORT libscaleTargets
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libscale)
 
 include(CMakePackageConfigHelpers)
+# Consumers of the shared library get private dependencies through the shared
+# object, so the config file only looks them up for static builds.
+if(BUILD_SHARED_LIBS)
+    set(LIBSCALE_PACKAGE_SHARED TRUE)
+else()
+    set(LIBSCALE_PACKAGE_SHARED FALSE)
+endif()
 configure_package_config_file(
     ${PROJECT_SOURCE_DIR}/cmake/libscaleConfig.cmake.in
     ${PROJECT_BINARY_DIR}/libscaleConfig.cmake

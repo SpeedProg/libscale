@@ -70,3 +70,474 @@ jobs:
       run: |
         export PKG_CONFIG_PATH="/ucrt64/lib/pkgconfig:${PKG_CONFIG_PATH}"
         conan create . --build=missing -s build_type=Release
+
+  package-linux:
+    needs: [ test-linux, test-windows ]
+    if: github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [ Release, Debug ]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Install Dependencies
+      run: |
+        for attempt in 1 2 3; do
+          sudo apt-get update -o Acquire::Retries=3 && \
+          sudo apt-get install -y -o Acquire::Retries=3 \
+            libusb-1.0-0-dev libudev-dev pkg-config cmake && break
+          echo "apt attempt $attempt failed; retrying..."
+          sleep 15
+        done
+    - name: Install Conan
+      run: pip install conan
+    - name: Conan Profile
+      run: conan profile detect --force
+    - name: Determine Version
+      run: |
+        VERSION=$(conan inspect . --format=json | grep -oP '"version":\s*"\K[^"]+')
+        if [ -z "$VERSION" ]; then echo "could not determine recipe version"; exit 1; fi
+        echo "SCALE_VERSION=$VERSION" >> "$GITHUB_ENV"
+    - name: Build, Package and Consume-Test Each Linkage
+      run: |
+        set -euo pipefail
+        BT="${{ matrix.build_type }}"
+        TYPE=$(echo "$BT" | tr '[:upper:]' '[:lower:]')
+        OS_TOKEN=linux
+        V="$SCALE_VERSION"
+        EXT="tar.xz"
+        echo "ARCHIVE_EXT=$EXT" >> "$GITHUB_ENV"
+
+        # --- consumer scratch project (mirrors a real find_package consumer) ---
+        mkdir -p consumer
+        cat > consumer/main.cpp <<'EOF'
+        #include <chrono>
+        #include <cmath>
+        #include <cstdlib>
+        #include <iostream>
+
+        #include "libscale/calculator.hpp"
+        #include "libscale/types.hpp"
+        #include "libscale/units.hpp"
+
+        auto main() -> int {
+            // 70 kg at 175 cm is BMI ~22.86.
+            double const bmi = libscale::health_utils::calculate_bmi(
+                libscale::units::Kg{70.0}, libscale::units::Cm{175});
+            if (std::abs(bmi - 22.857) > 0.01) {
+                std::cerr << "Unexpected BMI: " << bmi << '\n';
+                return EXIT_FAILURE;
+            }
+            libscale::UserProfile user;
+            user.name = "consumer";
+            user.height = libscale::units::Cm{175};
+            user.birthday = std::chrono::year(1990) / 1 / 1;
+            auto const age = libscale::health_utils::calculate_age(
+                user.birthday, std::chrono::year(2026) / 1 / 1);
+            if (!age || age->value != 36) {
+                std::cerr << "Unexpected age calculation.\n";
+                return EXIT_FAILURE;
+            }
+            std::cout << "consumer ok (BMI " << bmi << ")\n";
+            return EXIT_SUCCESS;
+        }
+        EOF
+        cat > consumer/CMakeLists.txt <<'EOF'
+        cmake_minimum_required(VERSION 3.20)
+        project(libscale_consumer CXX)
+        set(CMAKE_CXX_STANDARD 20)
+        set(CMAKE_CXX_STANDARD_REQUIRED ON)
+        find_package(libscale REQUIRED)
+        add_executable(consumer main.cpp)
+        target_link_libraries(consumer PRIVATE libscale::libscale)
+        EOF
+
+        mkdir -p stage
+        for LINKAGE in static shared; do
+          if [ "$LINKAGE" = shared ]; then SHARED=True; else SHARED=False; fi
+          NAME="libscale-$V-$OS_TOKEN-x86_64-$TYPE-$LINKAGE"
+          echo "================ $NAME ================"
+          echo "NAME_${LINKAGE^^}=$NAME" >> "$GITHUB_ENV"
+
+          conan create . --build=missing -s build_type="$BT" -o shared=$SHARED -o libusb/*:shared=True \
+            --format=json --out-file="conan-$LINKAGE.json" 2>&1 | tee "conan-$LINKAGE.log" \
+            || { echo "CONAN CREATE FAILED"; tail -25 "conan-$LINKAGE.log"; exit 1; }
+          grep -E "Package .* created|tests passed" "conan-$LINKAGE.log" | tail -2 || true
+
+          PKG_DIR=$(python3 tools/parse_pkg.py pkg "conan-$LINKAGE.json")
+          GEN_DIR=$(python3 tools/parse_pkg.py gens "conan-$LINKAGE.json")
+
+          mkdir -p "stage/$NAME"
+          cp -a "$PKG_DIR/lib" "$PKG_DIR/include" "$PKG_DIR/share" "stage/$NAME/"
+          # Shared Windows libraries install their DLL to bin/ (RUNTIME
+          # destination); libscaleTargets.cmake references it, so the archive
+          # must contain it. POSIX shared libs land in lib/ already.
+          if [ -d "$PKG_DIR/bin" ]; then
+            cp -a "$PKG_DIR/bin" "stage/$NAME/"
+          fi
+
+          # License compliance: dependency license texts and a notices summary
+          # travel with the distribution. The helper excludes test and
+          # build-context dependencies, routes ConanCenter /system packages to
+          # an "OS-provided" section, and FAILS this job for any dependency
+          # whose license text cannot be located. To ship such an artifact
+          # deliberately anyway, list the component (comma-separated) in the
+          # ALLOW_MISSING_LICENSE_TEXT environment variable (set it on the
+          # job or runner, comma-separated component names).
+          python3 tools/parse_pkg.py licenses "conan-$LINKAGE.json" "stage/$NAME"
+          cat > "stage/$NAME/README.txt" <<EOF
+        libscale $V - prebuilt binary distribution
+        =========================================
+
+        Contents
+        --------
+        include/libscale/   public headers
+        lib/                 static or shared library + CMake package files
+                            (lib/cmake/libscale provides find_package(libscale))
+        bin/                 shared library DLLs (Windows shared builds only)
+        share/licenses/      license texts of libscale and its dependencies
+
+        Consuming with CMake
+        --------------------
+        find_package(libscale REQUIRED)
+        target_link_libraries(your_app PRIVATE libscale::libscale)
+
+        Shared builds: on Linux point LD_LIBRARY_PATH (or rpath) at lib/,
+        on Windows copy bin/*.dll next to your executable.
+
+        See share/licenses/THIRD-PARTY-NOTICES.txt for bundled components.
+        EOF
+
+          XZ_OPT="-9 -T0" tar -cJ --sort=name --owner=0 --group=0 --numeric-owner \
+            --mtime='@1700000000' -f "$NAME.$EXT" -C stage "$NAME"
+          echo "archive: $NAME.$EXT ($(du -h "$NAME.$EXT" | cut -f1))"
+
+          # --- consume-test: Conan-style consumer, libscale from the ARCHIVE ---
+          rm -rf extract consumer/build scratch
+          mkdir -p extract scratch
+          tar -xJf "$NAME.$EXT" -C extract
+          EXTRACTED="$PWD/extract/$NAME"
+
+          # libusb is built shared on Linux so consumers can replace it
+          # (LGPL 2.1 section 6a): the runtime loader must find it.
+          LIBUSB_LIB=$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(next((n['package_folder'].replace(chr(92),'/')+'/lib' for n in d['graph']['nodes'].values() if n.get('ref','').startswith('libusb/') and n.get('package_folder')),''))" "conan-$LINKAGE.json")
+
+          printf "[requires]\nlibscale/$V\n[generators]\nCMakeDeps\n" > scratch/conanfile.txt
+          ( cd scratch && conan install . -s build_type="$BT" -o "libscale/*:shared=$SHARED" -o libusb/*:shared=True \
+              -of ./gen > install.log 2>&1 ) \
+            || { echo "SCRATCH CONAN INSTALL FAILED"; tail -25 scratch/install.log; exit 1; }
+
+          # Header-only dependencies (nlohmann_json, sqlite_orm) contribute
+          # nothing to the link line, and Conan may skip generating their
+          # configs when they are transitive for a consumer. Shim them as
+          # no-op interface targets so find_package always succeeds.
+          mkdir -p shim
+          cat > shim/nlohmann_jsonConfig.cmake <<'EOF'
+        add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
+        EOF
+          cat > shim/SqliteOrmConfig.cmake <<'EOF'
+        add_library(sqlite_orm::sqlite_orm INTERFACE IMPORTED)
+        EOF
+          # CMake's module-mode FindSQLite3 wins over config mode and stops the
+          # search when no system SQLite exists (Windows runners), hiding the
+          # Conan-generated config. Delegate to config mode instead.
+          cat > shim/FindSQLite3.cmake <<'EOF'
+        find_package(SQLite3 CONFIG QUIET)
+        EOF
+
+          # The archive provides libscale itself; dependencies resolve from the
+          # CMakeDeps configs generated by the create (guaranteed to cover
+          # everything the build used), the scratch install, and the shims.
+          PP="$EXTRACTED;$PWD/scratch/gen;$PWD/shim"
+          if [ -n "$GEN_DIR" ]; then PP="$PP;$GEN_DIR"; fi
+          cmake -S consumer -B consumer/build -DCMAKE_BUILD_TYPE="$BT" \
+            -DCMAKE_PREFIX_PATH="$PP" > cfg.log 2>&1 \
+            || { echo "CONFIGURE FAILED"; tail -30 cfg.log; exit 1; }
+          cmake --build consumer/build > bld.log 2>&1 \
+            || { echo "BUILD FAILED"; tail -30 bld.log; exit 1; }
+          if [ "$LINKAGE" = shared ]; then
+            LD_LIBRARY_PATH="$EXTRACTED/lib:$LIBUSB_LIB" ./consumer/build/consumer
+          else
+            LD_LIBRARY_PATH="$LIBUSB_LIB" ./consumer/build/consumer
+          fi
+          echo "shipped layout:"
+          find "$EXTRACTED" | sed "s|$EXTRACTED|.|" | sort
+          echo "third-party license files:"
+          find "$EXTRACTED/share/licenses" -type f | sed "s|$EXTRACTED|.|" | sort
+        done
+        echo "ALL LINKAGES OK"
+
+    - name: Upload Static Archive
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ env.NAME_STATIC }}
+        path: ${{ env.NAME_STATIC }}.${{ env.ARCHIVE_EXT }}
+        if-no-files-found: error
+        retention-days: 90
+
+    - name: Upload Shared Archive
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ env.NAME_SHARED }}
+        path: ${{ env.NAME_SHARED }}.${{ env.ARCHIVE_EXT }}
+        if-no-files-found: error
+        retention-days: 90
+
+  package-windows:
+    needs: [ test-linux, test-windows ]
+    if: github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [ Release, Debug ]
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        path-type: inherit
+        install: >-
+          mingw-w64-ucrt-x86_64-gcc
+          mingw-w64-ucrt-x86_64-cmake
+          mingw-w64-ucrt-x86_64-ninja
+          mingw-w64-ucrt-x86_64-pkg-config
+          mingw-w64-ucrt-x86_64-libusb
+          mingw-w64-ucrt-x86_64-libarchive
+    - name: Install Conan
+      run: pip install conan
+    - name: Conan Profile
+      shell: msys2 {0}
+      run: |
+        CONAN_HOME=$(conan config home)
+        mkdir -p "$CONAN_HOME/profiles"
+        # Detect the GCC version so the profile always matches the MSYS2 toolchain.
+        GCC_VER=$(gcc -dumpfullversion | cut -d. -f1,2)
+        cat << EOF > "$CONAN_HOME/profiles/default"
+        [settings]
+        os=Windows
+        arch=x86_64
+        compiler=gcc
+        compiler.version=${GCC_VER}
+        compiler.libcxx=libstdc++11
+        compiler.cppstd=gnu20
+
+        [conf]
+        tools.cmake.cmaketoolchain:generator=Ninja
+        EOF
+    - name: Determine Version
+      shell: msys2 {0}
+      run: |
+        VERSION=$(conan inspect . --format=json | grep -oP '"version":\s*"\K[^"]+')
+        if [ -z "$VERSION" ]; then echo "could not determine recipe version"; exit 1; fi
+        echo "SCALE_VERSION=$VERSION" >> "$GITHUB_ENV"
+    - name: Build, Package and Consume-Test Each Linkage
+      shell: msys2 {0}
+      run: |
+        set -euo pipefail
+        BT="${{ matrix.build_type }}"
+        TYPE=$(echo "$BT" | tr '[:upper:]' '[:lower:]')
+        OS_TOKEN=windows
+        V="$SCALE_VERSION"
+        EXT="zip"
+        echo "ARCHIVE_EXT=$EXT" >> "$GITHUB_ENV"
+        export PKG_CONFIG_PATH="/ucrt64/lib/pkgconfig:${PKG_CONFIG_PATH}"
+
+        # --- consumer scratch project (mirrors a real find_package consumer) ---
+        mkdir -p consumer
+        cat > consumer/main.cpp <<'EOF'
+        #include <chrono>
+        #include <cmath>
+        #include <cstdlib>
+        #include <iostream>
+
+        #include "libscale/calculator.hpp"
+        #include "libscale/types.hpp"
+        #include "libscale/units.hpp"
+
+        auto main() -> int {
+            // 70 kg at 175 cm is BMI ~22.86.
+            double const bmi = libscale::health_utils::calculate_bmi(
+                libscale::units::Kg{70.0}, libscale::units::Cm{175});
+            if (std::abs(bmi - 22.857) > 0.01) {
+                std::cerr << "Unexpected BMI: " << bmi << '\n';
+                return EXIT_FAILURE;
+            }
+            libscale::UserProfile user;
+            user.name = "consumer";
+            user.height = libscale::units::Cm{175};
+            user.birthday = std::chrono::year(1990) / 1 / 1;
+            auto const age = libscale::health_utils::calculate_age(
+                user.birthday, std::chrono::year(2026) / 1 / 1);
+            if (!age || age->value != 36) {
+                std::cerr << "Unexpected age calculation.\n";
+                return EXIT_FAILURE;
+            }
+            std::cout << "consumer ok (BMI " << bmi << ")\n";
+            return EXIT_SUCCESS;
+        }
+        EOF
+        cat > consumer/CMakeLists.txt <<'EOF'
+        cmake_minimum_required(VERSION 3.20)
+        project(libscale_consumer CXX)
+        set(CMAKE_CXX_STANDARD 20)
+        set(CMAKE_CXX_STANDARD_REQUIRED ON)
+        find_package(libscale REQUIRED)
+        add_executable(consumer main.cpp)
+        target_link_libraries(consumer PRIVATE libscale::libscale)
+        EOF
+
+        mkdir -p stage
+        for LINKAGE in static shared; do
+          if [ "$LINKAGE" = shared ]; then SHARED=True; else SHARED=False; fi
+          NAME="libscale-$V-$OS_TOKEN-x86_64-$TYPE-$LINKAGE"
+          echo "================ $NAME ================"
+          echo "NAME_${LINKAGE^^}=$NAME" >> "$GITHUB_ENV"
+
+          conan create . --build=missing -s build_type="$BT" -o shared=$SHARED \
+            --format=json --out-file="conan-$LINKAGE.json" 2>&1 | tee "conan-$LINKAGE.log" \
+            || { echo "CONAN CREATE FAILED"; tail -25 "conan-$LINKAGE.log"; exit 1; }
+          grep -E "Package .* created|tests passed" "conan-$LINKAGE.log" | tail -2 || true
+
+          PKG_DIR=$(python3 tools/parse_pkg.py pkg "conan-$LINKAGE.json")
+          GEN_DIR=$(python3 tools/parse_pkg.py gens "conan-$LINKAGE.json")
+
+          mkdir -p "stage/$NAME"
+          cp -a "$PKG_DIR/lib" "$PKG_DIR/include" "$PKG_DIR/share" "stage/$NAME/"
+          # Shared Windows libraries install their DLL to bin/ (RUNTIME
+          # destination); libscaleTargets.cmake references it, so the archive
+          # must contain it. POSIX shared libs land in lib/ already.
+          if [ -d "$PKG_DIR/bin" ]; then
+            cp -a "$PKG_DIR/bin" "stage/$NAME/"
+          fi
+
+          # License compliance: dependency license texts and a notices summary
+          # travel with the distribution. The helper excludes test and
+          # build-context dependencies, routes ConanCenter /system packages to
+          # an "OS-provided" section, and FAILS this job for any dependency
+          # whose license text cannot be located. To ship such an artifact
+          # deliberately anyway, list the component (comma-separated) in the
+          # ALLOW_MISSING_LICENSE_TEXT environment variable (set it on the
+          # job or runner, comma-separated component names).
+          python3 tools/parse_pkg.py licenses "conan-$LINKAGE.json" "stage/$NAME"
+          cat > "stage/$NAME/README.txt" <<EOF
+        libscale $V - prebuilt binary distribution
+        =========================================
+
+        Contents
+        --------
+        include/libscale/   public headers
+        lib/                 static or shared library + CMake package files
+                            (lib/cmake/libscale provides find_package(libscale))
+        bin/                 shared library DLLs (Windows shared builds only)
+        share/licenses/      license texts of libscale and its dependencies
+
+        Consuming with CMake
+        --------------------
+        find_package(libscale REQUIRED)
+        target_link_libraries(your_app PRIVATE libscale::libscale)
+
+        Shared builds: on Linux point LD_LIBRARY_PATH (or rpath) at lib/,
+        on Windows copy bin/*.dll next to your executable.
+
+        See share/licenses/THIRD-PARTY-NOTICES.txt for bundled components.
+        EOF
+
+          # libusb is not a Conan dependency on Windows (it comes from MSYS2),
+          # so it never appears in the graph and its LGPL text would be
+          # missing from the distribution. Stage it from the toolchain.
+          found_libusb_lic=no
+          for lic_dir_path in /ucrt64/share/licenses/libusb*; do
+            if [ -d "$lic_dir_path" ]; then
+              mkdir -p "stage/$NAME/share/licenses/libusb"
+              cp -a "$lic_dir_path"/. "stage/$NAME/share/licenses/libusb/"
+              found_libusb_lic=yes
+            fi
+          done
+          if [ "$found_libusb_lic" = yes ]; then
+            libusb_ver=$(pkg-config --modversion libusb-1.0 2>/dev/null || echo "version unknown")
+            printf "\nlibusb %s\n    License: LGPL-2.1\n    Project: https://github.com/libusb/libusb\n    (provided by the MSYS2 toolchain; text included)\n" "$libusb_ver" \
+              >> "stage/$NAME/share/licenses/THIRD-PARTY-NOTICES.txt"
+            echo "libusb license text shipped from MSYS2"
+          else
+            echo "NOTE: no MSYS2 libusb license text found under /ucrt64/share/licenses"
+          fi
+
+          bsdtar -a -c -f "$NAME.$EXT" -C stage "$NAME"
+          echo "archive: $NAME.$EXT ($(du -h "$NAME.$EXT" | cut -f1))"
+
+          # --- consume-test: Conan-style consumer, libscale from the ARCHIVE ---
+          rm -rf extract consumer/build scratch
+          mkdir -p extract scratch
+          bsdtar -xf "$NAME.$EXT" -C extract
+          EXTRACTED="$PWD/extract/$NAME"
+
+          printf "[requires]\nlibscale/$V\n[generators]\nCMakeDeps\n" > scratch/conanfile.txt
+          ( cd scratch && conan install . -s build_type="$BT" -o "libscale/*:shared=$SHARED" \
+              -of ./gen > install.log 2>&1 ) \
+            || { echo "SCRATCH CONAN INSTALL FAILED"; tail -25 scratch/install.log; exit 1; }
+
+          # Header-only dependencies (nlohmann_json, sqlite_orm) contribute
+          # nothing to the link line, and Conan may skip generating their
+          # configs when they are transitive for a consumer. Shim them as
+          # no-op interface targets so find_package always succeeds.
+          mkdir -p shim
+          cat > shim/nlohmann_jsonConfig.cmake <<'EOF'
+        add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
+        EOF
+          cat > shim/SqliteOrmConfig.cmake <<'EOF'
+        add_library(sqlite_orm::sqlite_orm INTERFACE IMPORTED)
+        EOF
+          # CMake's module-mode FindSQLite3 wins over config mode and stops the
+          # search when no system SQLite exists (Windows runners), hiding the
+          # Conan-generated config. Delegate to config mode instead.
+          cat > shim/FindSQLite3.cmake <<'EOF'
+        find_package(SQLite3 CONFIG QUIET)
+        EOF
+
+          # The archive provides libscale itself; dependencies resolve from the
+          # CMakeDeps configs generated by the create (guaranteed to cover
+          # everything the build used), the scratch install, and the shims.
+          PP="$(cd "$EXTRACTED" && pwd -W);$(cd "$PWD/scratch/gen" && pwd -W);$(cd "$PWD/shim" && pwd -W)"
+          if [ -n "$GEN_DIR" ]; then PP="$PP;$(cd "$GEN_DIR" && pwd -W)"; fi
+          # Windows has no system SQLite: CMake's module-mode FindSQLite3 would
+          # stop the search before reaching the Conan config, so the shim module
+          # directory takes precedence and delegates to it. Paths handed to the
+          # native cmake must be Windows-style (pwd -W), not msys-style.
+          cmake -S consumer -B consumer/build -DCMAKE_BUILD_TYPE="$BT" \
+            -DCMAKE_PREFIX_PATH="$PP" -DCMAKE_MODULE_PATH="$(cd "$PWD/shim" && pwd -W)" \
+            > cfg.log 2>&1 \
+            || { echo "CONFIGURE FAILED"; tail -30 cfg.log; exit 1; }
+          cmake --build consumer/build > bld.log 2>&1 \
+            || { echo "BUILD FAILED"; tail -30 bld.log; exit 1; }
+          if [ "$LINKAGE" = shared ]; then
+            cp "$EXTRACTED"/bin/*.dll ./consumer/build/
+            ./consumer/build/consumer.exe
+          else
+            ./consumer/build/consumer.exe
+          fi
+          echo "shipped layout:"
+          find "$EXTRACTED" | sed "s|$EXTRACTED|.|" | sort
+          echo "third-party license files:"
+          find "$EXTRACTED/share/licenses" -type f | sed "s|$EXTRACTED|.|" | sort
+        done
+        echo "ALL LINKAGES OK"
+
+    - name: Upload Static Archive
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ env.NAME_STATIC }}
+        path: ${{ env.NAME_STATIC }}.${{ env.ARCHIVE_EXT }}
+        if-no-files-found: error
+        retention-days: 90
+
+    - name: Upload Shared Archive
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ env.NAME_SHARED }}
+        path: ${{ env.NAME_SHARED }}.${{ env.ARCHIVE_EXT }}
+        if-no-files-found: error
+        retention-days: 90

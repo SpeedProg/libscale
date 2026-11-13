@@ -23,5 +23,15 @@ target_link_libraries(libscale_tests PRIVATE
     Threads::Threads
 )
 
+# Windows has no RPATH for the build tree (unlike Linux), so a shared build
+# leaves liblibscale.dll in the build root while the test executable lives in
+# tests/ — ctest then dies with 0xc0000135 (STATUS_DLL_NOT_FOUND). Place the
+# library next to the executable after linking. Harmless (copies the static
+# archive instead) for static builds.
+if(WIN32)
+    add_custom_command(TARGET libscale_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:libscale> $<TARGET_FILE_DIR:libscale_tests>)
+endif()
 
 add_test(NAME libscale_tests COMMAND libscale_tests)
