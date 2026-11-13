@@ -23,7 +23,7 @@ src/libscale/       implementation, including the private SQLite serializers
 tests/              unit tests (GoogleTest, in-memory fakes and SQLite)
 cmake/              libscaleConfig.cmake.in package template
 test_package/       Conan consumption test
-tools/              documentation checks (Doxygen + Python)
+tools/              documentation checks (Doxygen + Python) and CI helpers
 ```
 
 ## Requirements
@@ -103,14 +103,17 @@ target_link_libraries(my_app PRIVATE libscale::libscale)
 
 ## Tagging releases
 
-Tag releases as `libscale-vX.Y.Z` and keep the recipe `version` in sync with
-`project(libscale VERSION ...)` in `CMakeLists.txt`. Consumers can pin a release with:
+Tag releases as `vX.Y.Z` and keep the recipe `version` in sync with
+`project(libscale VERSION ...)` in `CMakeLists.txt`. Pushing a `v*` tag runs the
+release job, which verifies the tag against the recipe version and drafts a
+GitHub Release with the prebuilt Linux/Windows archives (Release and Debug,
+static and shared) plus `SHA256SUMS`. Consumers can pin a release with:
 
 ```bash
-git clone --branch libscale-v1.0.0 --depth 1 https://github.com/SpeedProg/libscale.git
+git clone --branch v1.0.0 --depth 1 https://github.com/SpeedProg/libscale.git
 ```
 
-### Publishing binaries later
+### Publishing Conan binaries
 
 The `conan create` flow above compiles the library once per machine and caches it. If rebuilds
 become painful (many machines or CI jobs), add a binary remote — Artifactory CE, Cloudsmith or

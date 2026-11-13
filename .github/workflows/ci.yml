@@ -3,6 +3,7 @@ name: libscale CI
 on:
   push:
     branches: [ main, master ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
 
@@ -541,3 +542,50 @@ jobs:
         path: ${{ env.NAME_SHARED }}.${{ env.ARCHIVE_EXT }}
         if-no-files-found: error
         retention-days: 90
+
+  release:
+    needs: [ package-linux, package-windows ]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v6
+    - name: Install Conan
+      run: pip install conan
+    - name: Verify Tag Matches Recipe Version
+      run: |
+        TAG="${GITHUB_REF#refs/tags/v}"
+        VERSION=$(conan inspect . --format=json | grep -oP '"version":\s*"\K[^"]+')
+        echo "tag=$TAG recipe=$VERSION"
+        if [ "$TAG" != "$VERSION" ]; then
+          echo "::error::tag $TAG does not match recipe version $VERSION"
+          exit 1
+        fi
+    - name: Download Artifacts
+      uses: actions/download-artifact@v8
+      with:
+        path: artifacts
+    - name: Flatten and Checksum
+      run: |
+        set -euo pipefail
+        shopt -s nullglob
+        mkdir -p dist
+        find artifacts -type f \( -name '*.tar.xz' -o -name '*.zip' \) -exec mv -t dist {} +
+        cd dist
+        archives=(*.tar.xz *.zip)
+        if [ "${#archives[@]}" -eq 0 ]; then
+          echo "::error::no archives found in the downloaded artifacts"
+          exit 1
+        fi
+        sha256sum "${archives[@]}" > SHA256SUMS
+        ls -la
+    - name: Create Draft Release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        TAG="${GITHUB_REF#refs/tags/v}"
+        gh release view "v$TAG" >/dev/null 2>&1 || \
+          gh release create --draft --generate-notes "v$TAG"
+        gh release upload "v$TAG" --clobber dist/*
+        echo "draft release updated: v$TAG (publish it manually)"
