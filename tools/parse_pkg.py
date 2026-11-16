@@ -148,10 +148,13 @@ def stage_licenses(nodes, staging):
             system.append(entry[:4] + (reason,))
         else:
             missing.append(entry[:4] + (reason,))
-    staged.sort()
-    system.sort()
-    allowlisted.sort()
-    missing.sort()
+
+    # Sort by the content fields only: element 5 (reason) may be None, and
+    # comparing it directly could raise TypeError on duplicate entries.
+    staged.sort(key=lambda entry: entry[:4])
+    system.sort(key=lambda entry: entry[:4])
+    allowlisted.sort(key=lambda entry: entry[:4])
+    missing.sort(key=lambda entry: entry[:4])
     with open(os.path.join(lic_dir, "THIRD-PARTY-NOTICES.txt"), "w", encoding="utf-8") as fh:
         fh.write("libscale and third-party components\n")
         fh.write("==================================\n\n")
