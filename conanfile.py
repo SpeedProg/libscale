@@ -7,7 +7,7 @@ from conan.tools.files import copy
 
 class LibscaleConan(ConanFile):
     name = "libscale"
-    version = "1.0.0"
+    version = "0.1.0"
     description = ("Library for reading Comfort Select USB scales and computing body "
                    "composition metrics from raw bio-impedance data.")
     license = "MIT"
