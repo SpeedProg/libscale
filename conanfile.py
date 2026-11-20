@@ -7,7 +7,7 @@ from conan.tools.files import copy
 
 class LibscaleConan(ConanFile):
     name = "libscale"
-    version = "0.1.0"
+    version = "0.1.1"
     description = ("Library for reading Comfort Select USB scales and computing body "
                    "composition metrics from raw bio-impedance data.")
     license = "MIT"
@@ -74,3 +74,12 @@ class LibscaleConan(ConanFile):
         self.cpp_info.set_property("cmake_file_name", "libscale")
         self.cpp_info.set_property("cmake_target_name", "libscale::libscale")
         self.cpp_info.libs = ["libscale"]
+        if self.settings.os == "Windows" and not self.options.shared:
+            # On Windows libusb is not part of the Conan graph (it comes from
+            # the system, MSYS2 ships pkg-config metadata for it), so nothing
+            # propagates it automatically. Static consumers link the archive
+            # themselves and must resolve the libusb_* symbols, otherwise the
+            # link fails on device.cpp. Shared consumers are covered: the DLL
+            # links libusb when it is built. The cmake-install package config
+            # handles this for non-Conan consumers via its pkg-config fallback.
+            self.cpp_info.system_libs = ["usb-1.0"]
